@@ -20,7 +20,7 @@ const Header = () => {
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
-    document.body.classList.toggle('mobile-menu-open');
++    document.body.classList.toggle('mobile-menu-open');
   };
 
   useEffect(() => {
@@ -32,7 +32,7 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      document.body.classList.remove('mobile-menu-open');
++      document.body.classList.remove('mobile-menu-open');
     };
   }, []);
 
@@ -42,6 +42,7 @@ const Header = () => {
     document.body.classList.remove('mobile-menu-open');
   }, [location]);
 
+  
   const navigationItems = [
     { name: 'Accueil', path: '/' },
     { name: 'Projets', path: '/projets' },
