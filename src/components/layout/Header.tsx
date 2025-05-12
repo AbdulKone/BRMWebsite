@@ -20,7 +20,7 @@ const Header = () => {
 
   const toggleMenu = () => {
     setIsOpen(!isOpen);
-+    document.body.classList.toggle('mobile-menu-open');
+    document.body.classList.toggle('mobile-menu-open');
   };
 
   useEffect(() => {
@@ -32,7 +32,7 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => {
       window.removeEventListener('scroll', handleScroll);
-+      document.body.classList.remove('mobile-menu-open');
+      document.body.classList.remove('mobile-menu-open');
     };
   }, []);
 
@@ -42,7 +42,6 @@ const Header = () => {
     document.body.classList.remove('mobile-menu-open');
   }, [location]);
 
-  
   const navigationItems = [
     { name: 'Accueil', path: '/' },
     { name: 'Projets', path: '/projets' },
@@ -75,14 +74,14 @@ const Header = () => {
 
   return (
     <header
-      className={`fixed w-full z-40 transition-all duration-300 ${
+      className={`fixed w-full z-50 transition-all duration-300 ${
         scrolled || isOpen
-          ? 'bg-black/90 backdrop-blur-sm py-3 shadow-md'
-          : 'bg-transparent py-5'
+          ? 'bg-black shadow-md'
+          : 'bg-transparent'
       }`}
     >
       <div className="container mx-auto px-4 md:px-6">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between py-4">
           <Link to="/" className="flex items-center z-50">
             <span className="text-2xl md:text-3xl font-heading font-bold gold-gradient">
               BlackRoadMusic
@@ -227,17 +226,17 @@ const Header = () => {
               animate="open"
               exit="closed"
               variants={menuVariants}
-              className="mobile-menu md:hidden"
+              className="fixed inset-0 top-[72px] bg-black z-40"
             >
               <motion.nav
                 variants={containerVariants}
-                className="flex flex-col py-6"
+                className="flex flex-col w-full h-full overflow-auto py-6"
               >
                 {navigationItems.map((item) => (
                   <motion.div key={item.name} variants={itemVariants}>
                     <Link
                       to={item.path}
-                      className={`mobile-menu-item ${
+                      className={`block py-3 px-6 text-xl font-medium transition-colors ${
                         location.pathname === item.path
                           ? 'text-accent-400'
                           : 'text-white hover:text-accent-400'
@@ -251,7 +250,7 @@ const Header = () => {
                 <motion.div variants={itemVariants}>
                   <button
                     onClick={() => setServicesOpen(!servicesOpen)}
-                    className="mobile-menu-item text-left flex items-center justify-between w-full"
+                    className="w-full py-3 px-6 text-xl font-medium text-left flex items-center justify-between text-white hover:text-accent-400 transition-colors"
                   >
                     <span>Services</span>
                     <ChevronDown 
@@ -271,13 +270,13 @@ const Header = () => {
                       >
                         <Link
                           to="/services"
-                          className="mobile-menu-subitem"
+                          className="block py-2 px-8 text-sm text-gray-300 hover:text-accent-400 transition-colors"
                         >
                           Nos services
                         </Link>
                         <Link
                           to="/reserver"
-                          className="mobile-menu-subitem"
+                          className="block py-2 px-8 text-sm text-gray-300 hover:text-accent-400 transition-colors"
                         >
                           Réserver
                         </Link>
@@ -289,7 +288,7 @@ const Header = () => {
                 <motion.div variants={itemVariants}>
                   <Link
                     to="/contact"
-                    className={`mobile-menu-item ${
+                    className={`block py-3 px-6 text-xl font-medium transition-colors ${
                       location.pathname === '/contact'
                         ? 'text-accent-400'
                         : 'text-white hover:text-accent-400'
@@ -304,7 +303,7 @@ const Header = () => {
                     <motion.div variants={itemVariants}>
                       <Link
                         to="/backstage"
-                        className={`mobile-menu-item ${
+                        className={`block py-3 px-6 text-xl font-medium transition-colors ${
                           location.pathname.startsWith('/backstage')
                             ? 'text-accent-400'
                             : 'text-white hover:text-accent-400'
@@ -316,7 +315,7 @@ const Header = () => {
                     <motion.div variants={itemVariants}>
                       <button
                         onClick={handleLogout}
-                        className="mobile-menu-item text-left flex items-center gap-2 text-red-400 hover:text-red-300"
+                        className="w-full py-3 px-6 text-xl font-medium text-left flex items-center gap-2 text-red-400 hover:text-red-300 transition-colors"
                       >
                         <LogOut className="h-5 w-5" />
                         <span>Se déconnecter</span>
