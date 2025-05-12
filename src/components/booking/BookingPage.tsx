@@ -3,7 +3,9 @@ import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { format, parse, isAfter, isBefore, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { supabase } from '../../lib/supabase';
+import { checkRateLimit, checkBookingOverlap } from '../../lib/security';
 
 interface BookingForm {
   client_name: string;
@@ -18,27 +20,40 @@ const BookingPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<BookingForm>();
+  const [captchaValue, setCaptchaValue] = useState<string | null>(null);
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<BookingForm>();
 
   const validateTimeRange = (start_time: string, end_time: string, date: string) => {
-    const startDateTime = parse(`${date} ${start_time}`, 'yyyy-MM-dd HH:mm', new Date());
-    const endDateTime = parse(`${date} ${end_time}`, 'yyyy-MM-dd HH:mm', new Date());
+    const startDateTime = parse(`${date} ${start_time}`, 'yyyy-MM-dd HH:mm', new Date(), { locale: fr });
+    let endDateTime = parse(`${date} ${end_time}`, 'yyyy-MM-dd HH:mm', new Date(), { locale: fr });
 
     // If end time is before start time, assume it's the next day
-    const adjustedEndDateTime = isBefore(endDateTime, startDateTime) 
-      ? addDays(endDateTime, 1) 
-      : endDateTime;
+    if (isBefore(endDateTime, startDateTime)) {
+      endDateTime = addDays(endDateTime, 1);
+    }
 
     return {
       startDateTime,
-      endDateTime: adjustedEndDateTime,
-      isValid: isAfter(adjustedEndDateTime, startDateTime)
+      endDateTime,
+      isValid: isAfter(endDateTime, startDateTime)
     };
   };
 
   const onSubmit = async (data: BookingForm) => {
+    if (!captchaValue) {
+      setError("Veuillez confirmer que vous n'êtes pas un robot");
+      return;
+    }
+
+    // Check rate limit
+    if (!checkRateLimit(data.client_name)) {
+      setError("Vous avez atteint la limite de réservations. Veuillez réessayer plus tard.");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
+
     try {
       // Validate time range
       const { startDateTime, endDateTime, isValid } = validateTimeRange(
@@ -51,20 +66,31 @@ const BookingPage = () => {
         throw new Error("L'heure de fin doit être après l'heure de début");
       }
 
-      // First, get or create a user session
-      const { data: sessionData } = await supabase.auth.getSession();
+      // Check for overlapping bookings
+      const hasOverlap = await checkBookingOverlap(startDateTime, endDateTime, data.studio_type);
+      if (hasOverlap) {
+        throw new Error("Ce créneau horaire n'est pas disponible");
+      }
+
+      // Create anonymous session if needed
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (!sessionData.session) {
-        // Create an anonymous session
-        const { data: { session }, error: signInError } = await supabase.auth.signInAnonymously();
+      if (!session) {
+        const { error: signInError } = await supabase.auth.signInAnonymously();
         if (signInError) throw signInError;
+      }
+
+      // Get the current session after potential anonymous sign-in
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      if (!currentSession) {
+        throw new Error("Impossible de créer une session");
       }
 
       const { error: bookingError } = await supabase.from('studio_bookings').insert([{
         ...data,
-        user_id: (await supabase.auth.getSession()).data.session?.user.id,
+        user_id: currentSession.user.id,
         status: 'pending',
-        // Store the validated dates
         start_datetime: startDateTime.toISOString(),
         end_datetime: endDateTime.toISOString()
       }]);
@@ -72,9 +98,10 @@ const BookingPage = () => {
       if (bookingError) {
         throw bookingError;
       }
-      
+
       setIsSubmitted(true);
       reset();
+      setCaptchaValue(null);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue lors de la réservation.';
       setError(errorMessage);
@@ -207,6 +234,14 @@ const BookingPage = () => {
                   placeholder="Détails sur votre projet, besoins spécifiques..."
                   {...register('notes')}
                 ></textarea>
+              </div>
+
+              <div>
+                <ReCAPTCHA
+                  sitekey="6LeIxAcTAAAAAJcZVRqyHh71UMIEGNQ_MXjiZKhI"
+                  onChange={(value) => setCaptchaValue(value)}
+                  theme="dark"
+                />
               </div>
 
               <button

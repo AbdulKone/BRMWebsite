@@ -46,7 +46,7 @@ export interface StudioBooking {
   date: string;
   start_time: string;
   end_time: string;
-  studio_type: 'recording' | 'mixing' | 'mastering' | 'composition';
+  studio_type: 'recording' | 'mixing' | 'mastering' | 'composition' | 'photo';
   notes?: string;
   status: 'pending' | 'confirmed' | 'cancelled';
   created_at: string;
