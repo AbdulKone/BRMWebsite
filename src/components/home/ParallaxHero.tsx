@@ -63,7 +63,7 @@ const ParallaxHero = () => {
           </p>
         </motion.div>
         
-        <motion.div
+        {/* <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 1.4 }}
@@ -85,7 +85,7 @@ const ParallaxHero = () => {
           >
             Nous contacter
           </motion.a>
-        </motion.div>
+        </motion.div> */}
       </div>
       
       <div className="absolute bottom-10 left-1/2 transform -translate-x-1/2 z-10 animate-bounce">

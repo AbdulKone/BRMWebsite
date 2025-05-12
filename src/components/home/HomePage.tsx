@@ -4,6 +4,7 @@ import { useContentStore } from '../../stores/contentStore';
 import ParallaxHero from './ParallaxHero';
 import ProjectCarousel from './ProjectCarousel';
 import ArtistNews from './ArtistNews';
+import { Link } from 'react-router-dom';
 
 const HomePage = () => {
   const { fetchProjects, fetchArtists, fetchServices, isLoading } = useContentStore();
@@ -56,7 +57,7 @@ const HomePage = () => {
               Actualités des artistes
             </h2>
             <p className="text-gray-400 max-w-2xl mx-auto">
-              L'actualité des artistes incontournables de la scène urbaine française
+              L'actualité des artistes qui nous ont fait confiance 
             </p>
           </motion.div>
           
@@ -88,12 +89,12 @@ const HomePage = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <a 
-                  href="/contact" 
+                <Link 
+                  to="/contact" 
                   className="inline-block bg-gradient-to-r from-accent-700 to-accent-500 text-white font-medium py-3 px-8 rounded-full transition-all hover:shadow-[0_0_15px_rgba(185,158,119,0.5)]"
                 >
                   Collaborer avec nous
-                </a>
+                </Link>
               </motion.div>
             </motion.div>
           </div>
