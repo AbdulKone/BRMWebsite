@@ -64,7 +64,7 @@ const ContactPage = () => {
 
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Contact</h3>
-                  <p className="text-gray-400 mb-1">contact@blackroadmusic.com</p>
+                  <p className="text-gray-400 mb-1">blackroadmusic@hotmail.com</p>
                   {/* <p className="text-gray-400">+33 7 65 26 12 62</p> */}
                 </div>
 
