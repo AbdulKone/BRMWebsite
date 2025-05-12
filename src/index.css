@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  @apply bg-black text-white font-sans antialiased;
+  overflow-x: hidden;
+}
+
+/* Image loading and error states */
+img {
+  @apply transition-opacity duration-300;
+}
+
+img.loading {
+  @apply opacity-0;
+}
+
+img.loaded {
+  @apply opacity-100;
+}
+
+img.error {
+  @apply bg-primary-800;
+}
+
+/* Other existing styles */
+.parallax-container {
+  @apply overflow-hidden relative;
+  height: 100vh;
+}
+
+.parallax-content {
+  @apply absolute inset-0 flex items-center justify-center;
+  will-change: transform;
+}
+
+.parallax-bg {
+  @apply absolute inset-0;
+  background-size: cover;
+  background-position: center;
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.text-shadow {
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.gold-gradient {
+  background: linear-gradient(to right, #c9b18f, #b99e77, #ad8d61);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.swiper-pagination-bullet {
+  @apply bg-accent-400 !important;
+}
+
+.swiper-button-next,
+.swiper-button-prev {
+  @apply text-accent-400 !important;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-primary-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-accent-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-accent-600;
+}
+
+.link-underline {
+  position: relative;
+}
+
+.link-underline:after {
+  content: '';
+  position: absolute;
+  width: 0;
+  height: 2px;
+  display: block;
+  margin-top: 5px;
+  right: 0;
+  background: linear-gradient(to right, #c9b18f, #b99e77);
+  transition: width 0.3s ease;
+}
+
+.link-underline:hover:after {
+  width: 100%;
+  left: 0;
+  background: linear-gradient(to right, #c9b18f, #b99e77);
+}
+
+.service-card {
+  @apply bg-primary-800 rounded-lg overflow-hidden transition-all duration-300 hover:shadow-[0_0_15px_rgba(185,158,119,0.3)];
+}
+
+/* Mobile menu styles */
+.mobile-menu {
+  @apply fixed inset-0 top-[60px] bg-black/95 backdrop-blur-md z-50;
+}
+
+.mobile-menu-item {
+  @apply block py-3 px-6 text-xl font-medium transition-colors;
+}
+
+.mobile-menu-subitem {
+  @apply block py-2 px-8 text-sm text-gray-300 hover:text-accent-400 transition-colors;
+}
+
+body.mobile-menu-open {
+  @apply overflow-hidden;
+}
