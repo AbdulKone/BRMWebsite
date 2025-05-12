@@ -61,18 +61,11 @@ const ContactPage = () => {
 
             <div className="bg-primary-900 rounded-xl p-6 md:p-8 mb-8">
               <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Adresse</h3>
-                  <p className="text-gray-400">
-                    32 Rue de la Musique<br />
-                    75011 Paris, France
-                  </p>
-                </div>
 
                 <div>
                   <h3 className="text-lg font-semibold mb-2">Contact</h3>
                   <p className="text-gray-400 mb-1">contact@blackroadmusic.com</p>
-                  <p className="text-gray-400">+33 1 23 45 67 89</p>
+                  {/* <p className="text-gray-400">+33 7 65 26 12 62</p> */}
                 </div>
 
                 <div>
@@ -95,15 +88,15 @@ const ContactPage = () => {
               </div>
             </div>
 
-            <div className="rounded-xl overflow-hidden h-60 md:h-80 relative">
+             {/* <div className="rounded-xl overflow-hidden h-60 md:h-80 relative">
               <iframe
                 title="Black Road Music Location"
                 className="absolute inset-0 w-full h-full border-0"
                 src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2624.6488531248005!2d2.3785151999999997!3d48.8629861!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x47e66ddb27f321c3%3A0x9fbfa564159de28!2s75011%20Paris%2C%20France!5e0!3m2!1sfr!2sfr!4v1634567890123!5m2!1sfr!2sfr"
                 loading="lazy"
                 style={{ filter: 'grayscale(100%) invert(92%) contrast(83%)' }}
-              ></iframe>
-            </div>
+              ></iframe> 
+            </div>*/}
           </motion.div>
         </div>
       </div>
