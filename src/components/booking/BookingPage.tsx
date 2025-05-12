@@ -1,17 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
-import { format } from 'date-fns';
+import { format, parse, isAfter, isBefore, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { supabase } from '../../lib/supabase';
-import { checkRateLimit, generateCSRFToken } from '../../lib/security';
 
 interface BookingForm {
   client_name: string;
   date: string;
   start_time: string;
   end_time: string;
-  studio_type: 'recording' | 'mixing' | 'mastering' | 'composition';
+  studio_type: 'recording' | 'mixing' | 'mastering' | 'composition' | 'photo';
   notes: string;
 }
 
@@ -19,21 +18,58 @@ const BookingPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<BookingForm>();
+  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<BookingForm>();
+
+  const validateTimeRange = (start_time: string, end_time: string, date: string) => {
+    const startDateTime = parse(`${date} ${start_time}`, 'yyyy-MM-dd HH:mm', new Date());
+    const endDateTime = parse(`${date} ${end_time}`, 'yyyy-MM-dd HH:mm', new Date());
+
+    // If end time is before start time, assume it's the next day
+    const adjustedEndDateTime = isBefore(endDateTime, startDateTime) 
+      ? addDays(endDateTime, 1) 
+      : endDateTime;
+
+    return {
+      startDateTime,
+      endDateTime: adjustedEndDateTime,
+      isValid: isAfter(adjustedEndDateTime, startDateTime)
+    };
+  };
 
   const onSubmit = async (data: BookingForm) => {
     setIsSubmitting(true);
     setError(null);
     try {
+      // Validate time range
+      const { startDateTime, endDateTime, isValid } = validateTimeRange(
+        data.start_time,
+        data.end_time,
+        data.date
+      );
+
+      if (!isValid) {
+        throw new Error("L'heure de fin doit être après l'heure de début");
+      }
+
+      // First, get or create a user session
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        // Create an anonymous session
+        const { data: { session }, error: signInError } = await supabase.auth.signInAnonymously();
+        if (signInError) throw signInError;
+      }
+
       const { error: bookingError } = await supabase.from('studio_bookings').insert([{
         ...data,
-        status: 'pending'
+        user_id: (await supabase.auth.getSession()).data.session?.user.id,
+        status: 'pending',
+        // Store the validated dates
+        start_datetime: startDateTime.toISOString(),
+        end_datetime: endDateTime.toISOString()
       }]);
 
       if (bookingError) {
-        if (bookingError.code === '23514') { // Check constraint violation
-          throw new Error('L\'heure de fin doit être après l\'heure de début.');
-        }
         throw bookingError;
       }
       
@@ -154,6 +190,7 @@ const BookingPage = () => {
                   <option value="mixing">Mixage</option>
                   <option value="mastering">Mastering</option>
                   <option value="composition">Composition</option>
+                  <option value="photo">Shooting Photo</option>
                 </select>
                 {errors.studio_type && (
                   <p className="mt-1 text-sm text-red-500">{errors.studio_type.message}</p>
