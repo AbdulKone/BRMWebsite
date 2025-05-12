@@ -74,7 +74,7 @@ const Footer = () => {
               ))}
             </div>
             <p className="text-gray-400">
-              Email: contact@blackroadmusic.com
+              Email: blackroadmusic@hotmail.com
             </p>
           </div>
 
