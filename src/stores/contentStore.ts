@@ -11,12 +11,14 @@ interface ContentStore {
   fetchProjects: () => Promise<void>;
   fetchArtists: () => Promise<void>;
   fetchServices: () => Promise<void>;
-  createProject: (project: Omit<Project, 'id' | 'created_at'>) => Promise<void>;
+  createProject: (project: Omit<Project, 'id' | 'created_at' | 'display_order'>) => Promise<void>;
   updateProject: (id: string, project: Partial<Project>) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
-  createArtist: (artist: Omit<Artist, 'id' | 'created_at'>) => Promise<void>;
+  updateProjectOrder: (id: string, newOrder: number) => Promise<void>;
+  createArtist: (artist: Omit<Artist, 'id' | 'created_at' | 'display_order'>) => Promise<void>;
   updateArtist: (id: string, artist: Partial<Artist>) => Promise<void>;
   deleteArtist: (id: string) => Promise<void>;
+  updateArtistOrder: (id: string, newOrder: number) => Promise<void>;
   createService: (service: Omit<Service, 'id' | 'created_at'>) => Promise<void>;
   updateService: (id: string, service: Partial<Service>) => Promise<void>;
   deleteService: (id: string) => Promise<void>;
@@ -35,7 +37,7 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       const { data, error } = await supabase
         .from('projects')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('display_order', { ascending: true });
 
       if (error) throw error;
       set({ projects: data || [] });
@@ -52,7 +54,7 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       const { data, error } = await supabase
         .from('artists')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('display_order', { ascending: true });
 
       if (error) throw error;
       set({ artists: data || [] });
@@ -97,9 +99,19 @@ export const useContentStore = create<ContentStore>((set, get) => ({
   createProject: async (project) => {
     set({ isLoading: true, error: null });
     try {
+      // Get max display_order
+      const { data: maxOrder } = await supabase
+        .from('projects')
+        .select('display_order')
+        .order('display_order', { ascending: false })
+        .limit(1)
+        .single();
+
+      const newOrder = (maxOrder?.display_order || 0) + 1;
+
       const { error } = await supabase
         .from('projects')
-        .insert([project])
+        .insert([{ ...project, display_order: newOrder }])
         .select()
         .single();
 
@@ -148,11 +160,35 @@ export const useContentStore = create<ContentStore>((set, get) => ({
     }
   },
 
-  createArtist: async (artist) => {
+  updateProjectOrder: async (id: string, newOrder: number) => {
     try {
       const { error } = await supabase
+        .from('projects')
+        .update({ display_order: newOrder })
+        .eq('id', id);
+
+      if (error) throw error;
+      await get().fetchProjects();
+    } catch (error) {
+      set({ error: (error as Error).message });
+    }
+  },
+
+  createArtist: async (artist) => {
+    try {
+      // Get max display_order
+      const { data: maxOrder } = await supabase
         .from('artists')
-        .insert([artist]);
+        .select('display_order')
+        .order('display_order', { ascending: false })
+        .limit(1)
+        .single();
+
+      const newOrder = (maxOrder?.display_order || 0) + 1;
+
+      const { error } = await supabase
+        .from('artists')
+        .insert([{ ...artist, display_order: newOrder }]);
 
       if (error) throw error;
       await get().fetchArtists();
@@ -180,6 +216,20 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       const { error } = await supabase
         .from('artists')
         .delete()
+        .eq('id', id);
+
+      if (error) throw error;
+      await get().fetchArtists();
+    } catch (error) {
+      set({ error: (error as Error).message });
+    }
+  },
+
+  updateArtistOrder: async (id: string, newOrder: number) => {
+    try {
+      const { error } = await supabase
+        .from('artists')
+        .update({ display_order: newOrder })
         .eq('id', id);
 
       if (error) throw error;

@@ -9,6 +9,7 @@ export interface Project {
   type: 'music' | 'video';
   image_url: string;
   video_url?: string;
+  display_order: number;
   created_at: string;
 }
 
@@ -20,6 +21,7 @@ export interface Artist {
   latest_work: string;
   release_date: string;
   profile_url?: string;
+  display_order: number;
   created_at: string;
 }
 
