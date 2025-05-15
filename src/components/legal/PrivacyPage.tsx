@@ -96,8 +96,7 @@ const PrivacyPage = () => {
             </h2>
             <p className="text-gray-300">
               Pour toute question concernant notre politique de confidentialité, contactez-nous à :<br />
-              Email : privacy@blackroadmusic.com<br />
-              Adresse : 32 Rue de la Musique, 75011 Paris, France
+              Email : blackroadmusic@hotmail.com<br />
             </p>
           </section>
         </motion.div>

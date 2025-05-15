@@ -22,7 +22,7 @@ const LegalNoticePage = () => {
               Le site blackroadmusic.com est édité par :
             </p>
             <div className="text-gray-300 mb-6">
-              <p>Black Road Music SARL</p>
+              <p>Black Road Music</p>
               <p>32 Rue de la Musique</p>
               <p>75011 Paris, France</p>
               <p>SIRET : XX XXX XXX XXXXX</p>
@@ -30,9 +30,8 @@ const LegalNoticePage = () => {
               <p>TVA Intracommunautaire : FR XX XXX XXX XXX</p>
             </div>
             <p className="text-gray-300">
-              Directeur de la publication : [Votre Nom]<br />
-              Email : contact@blackroadmusic.com<br />
-              Téléphone : +33 1 23 45 67 89
+              Directeur de la publication : KAAZTHENOVA<br />
+              Email : blackroadmusic@hotmail.com<br />
             </p>
           </section>
 
@@ -42,9 +41,9 @@ const LegalNoticePage = () => {
             </h2>
             <p className="text-gray-300">
               Le site est hébergé par :<br />
-              [Nom de l'hébergeur]<br />
-              [Adresse de l'hébergeur]<br />
-              [Contact de l'hébergeur]
+              [Vercel]<br />
+              {/*[Adresse de l'hébergeur]<br />
+              [Contact de l'hébergeur]*/}
             </p>
           </section>
 
