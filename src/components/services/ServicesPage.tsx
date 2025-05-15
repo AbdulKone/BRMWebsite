@@ -71,13 +71,6 @@ const ServicesPage = () => {
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                 <Link 
-                  to="/contact" 
-                  className="inline-block bg-gradient-to-r from-accent-700 to-accent-500 text-white font-medium py-3 px-8 rounded-full transition-all hover:shadow-[0_0_15px_rgba(185,158,119,0.5)]"
-                >
-                  Nous contacter
-                </Link>
-
                 <Link 
                   to="/reserver" 
                   className="inline-block bg-gradient-to-r from-accent-700 to-accent-500 text-white font-medium py-3 px-8 rounded-full transition-all hover:shadow-[0_0_15px_rgba(185,158,119,0.5)]"
