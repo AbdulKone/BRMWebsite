@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { useEffect } from 'react';
 import { useContentStore } from '../../stores/contentStore';
 import ServiceCard from './ServiceCard';
+import { Link } from 'react-router-dom';
 
 const ServicesPage = () => {
   const { services, fetchServices, isLoading } = useContentStore();
@@ -66,22 +67,24 @@ const ServicesPage = () => {
                 Chaque projet est unique et mérite une attention particulière. Contactez-nous pour discuter de vos besoins et obtenir un devis personnalisé.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <motion.a
-                  href="/contact"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="w-full sm:w-auto bg-gradient-to-r from-accent-700 to-accent-500 text-white font-medium py-3 px-8 rounded-full transition-all hover:shadow-[0_0_15px_rgba(185,158,119,0.5)]"
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                 <Link 
+                  to="/contact" 
+                  className="inline-block bg-gradient-to-r from-accent-700 to-accent-500 text-white font-medium py-3 px-8 rounded-full transition-all hover:shadow-[0_0_15px_rgba(185,158,119,0.5)]"
                 >
                   Nous contacter
-                </motion.a>
-                <motion.a
-                  href="/reserver"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="w-full sm:w-auto bg-transparent border-2 border-accent-500 text-white font-medium py-3 px-8 rounded-full transition-all hover:bg-accent-500/10"
+                </Link>
+
+                <Link 
+                  to="/reserver" 
+                  className="inline-block bg-gradient-to-r from-accent-700 to-accent-500 text-white font-medium py-3 px-8 rounded-full transition-all hover:shadow-[0_0_15px_rgba(185,158,119,0.5)]"
                 >
-                  Réserver une session
-                </motion.a>
+                  Reserver une session
+                </Link>
+              </motion.div>
               </div>
             </div>
           </div>
