@@ -8,8 +8,7 @@ import MessagesList from './MessagesList';
 import ProjectsAdmin from './ProjectsAdmin';
 import ArtistsAdmin from './ArtistsAdmin';
 import ServicesAdmin from './ServicesAdmin';
-import ProspectsList from '../prospection/ProspectsList';
-import EmailCampaign from '../prospection/EmailCampaign';
+import ProspectionDashboard from '../prospection/ProspectionDashboard';
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -65,16 +64,10 @@ const AdminDashboard = () => {
             Services
           </Link>
           <Link
-            to="/backstage/prospects"
-            className={`px-4 py-2 rounded ${location.pathname === '/backstage/prospects' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+            to="/backstage/prospection"
+            className={`px-4 py-2 rounded ${location.pathname.startsWith('/backstage/prospection') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
           >
-            Prospects
-          </Link>
-          <Link
-            to="/backstage/email-campaign"
-            className={`px-4 py-2 rounded ${location.pathname === '/backstage/email-campaign' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
-          >
-            Campagnes Email
+            Prospection
           </Link>
         </div>
       </nav>
@@ -86,8 +79,7 @@ const AdminDashboard = () => {
           <Route path="/projects" element={<ProjectsAdmin />} />
           <Route path="/artists" element={<ArtistsAdmin />} />
           <Route path="/services" element={<ServicesAdmin />} />
-          <Route path="/prospects" element={<ProspectsList />} />
-          <Route path="/email-campaign" element={<EmailCampaign />} />
+          <Route path="/prospection" element={<ProspectionDashboard />} />
         </Routes>
       </main>
     </div>
