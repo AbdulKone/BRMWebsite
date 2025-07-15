@@ -35,44 +35,32 @@ const AdminDashboard = () => {
     {
       path: '/backstage/bookings',
       label: 'Réservations',
-      shortLabel: 'Réserv.',
-      icon: Calendar,
-      description: 'Gérer les réservations'
+      icon: Calendar
     },
     {
       path: '/backstage/messages',
       label: 'Messages',
-      shortLabel: 'Msg',
-      icon: MessageCircle,
-      description: 'Messages clients'
+      icon: MessageCircle
     },
     {
       path: '/backstage/projects',
       label: 'Projets',
-      shortLabel: 'Proj.',
-      icon: FolderOpen,
-      description: 'Portfolio projets'
+      icon: FolderOpen
     },
     {
       path: '/backstage/artists',
       label: 'Artistes',
-      shortLabel: 'Art.',
-      icon: Users,
-      description: 'Équipe artistique'
+      icon: Users
     },
     {
       path: '/backstage/services',
       label: 'Services',
-      shortLabel: 'Serv.',
-      icon: Settings,
-      description: 'Offres de services'
+      icon: Settings
     },
     {
       path: '/backstage/prospection',
       label: 'Prospection',
-      shortLabel: 'CRM',
-      icon: TrendingUp,
-      description: 'CRM & Campagnes'
+      icon: TrendingUp
     }
   ];
 
@@ -86,129 +74,89 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900">
-      {/* Header unifié avec navigation intégrée */}
-      <div className="fixed top-16 left-0 right-0 z-50 bg-black/95 backdrop-blur-sm border-b border-gray-800">
-        <div className="container mx-auto px-3 sm:px-6">
-          {/* Titre et info - Desktop */}
-          <div className="hidden md:flex items-center justify-between py-4 border-b border-gray-700/50">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-2xl font-bold text-white mb-1 truncate">
-                {getCurrentPageTitle()}
-              </h1>
-              <p className="text-sm text-gray-400">
-                {navigationItems.find(item => 
-                  item.path === location.pathname || 
-                  (item.path === '/backstage/prospection' && location.pathname.startsWith('/backstage/prospection'))
-                )?.description || 'Tableau de bord administrateur'}
-              </p>
-            </div>
-            <div className="text-xs text-gray-500 ml-4">
-              {new Date().toLocaleDateString('fr-FR', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </div>
-          </div>
-
-          {/* Header mobile avec menu burger */}
-          <div className="md:hidden flex items-center justify-between py-3">
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-bold text-white truncate">
+      {/* Header principal avec navigation */}
+      <header className="fixed top-16 left-0 right-0 z-50 bg-black/95 backdrop-blur-sm border-b border-gray-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Titre de la page */}
+          <div className="flex items-center justify-between h-16">
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white">
                 {getCurrentPageTitle()}
               </h1>
             </div>
+            
+            {/* Menu burger mobile */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="p-2 text-gray-300 hover:text-white transition-colors"
+              className="md:hidden p-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
           </div>
 
-          {/* Navigation intégrée - Desktop */}
-          <div className="hidden md:flex space-x-1 overflow-x-auto scrollbar-hide py-3">
-            {navigationItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.path === location.pathname || 
-                (item.path === '/backstage/prospection' && location.pathname.startsWith('/backstage/prospection'));
-              
-              return (
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`group relative flex items-center space-x-2 lg:space-x-3 px-3 lg:px-4 py-2 lg:py-3 rounded-xl transition-all duration-300 whitespace-nowrap min-w-fit ${
-                    isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg shadow-blue-600/25'
-                      : 'text-gray-300 hover:bg-gray-800/80 hover:text-white hover:scale-102'
-                  }`}
-                >
-                  <Icon className={`w-4 h-4 lg:w-5 lg:h-5 transition-transform duration-300 ${
-                    isActive ? 'scale-110' : 'group-hover:scale-110'
-                  }`} />
-                  <span className="font-medium text-sm">
-                    <span className="hidden xl:inline">{item.label}</span>
-                    <span className="xl:hidden">{item.shortLabel}</span>
-                  </span>
-                  
-                  {/* Indicateur actif */}
-                  {isActive && (
-                    <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-2 h-2 bg-blue-400 rounded-full animate-pulse" />
-                  )}
-                  
-                  {/* Tooltip au hover */}
-                  <div className="absolute top-full mt-2 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
-                    {item.description}
-                  </div>
-                </Link>
-              );
-            })}
-          </div>
+          {/* Navigation desktop */}
+          <nav className="hidden md:block border-t border-gray-700">
+            <div className="flex space-x-8 py-4">
+              {navigationItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = item.path === location.pathname || 
+                  (item.path === '/backstage/prospection' && location.pathname.startsWith('/backstage/prospection'));
+                
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex items-center space-x-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                      isActive
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </nav>
         </div>
 
-        {/* Navigation Mobile - Menu déroulant */}
+        {/* Navigation mobile */}
         {isMobileMenuOpen && (
-          <div className="md:hidden bg-gray-900/98 backdrop-blur-sm border-t border-gray-700/50">
-            <div className="container mx-auto px-3 py-4">
-              <div className="grid grid-cols-2 gap-2">
-                {navigationItems.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = item.path === location.pathname || 
-                    (item.path === '/backstage/prospection' && location.pathname.startsWith('/backstage/prospection'));
-                  
-                  return (
-                    <Link
-                      key={item.path}
-                      to={item.path}
-                      onClick={() => setIsMobileMenuOpen(false)}
-                      className={`flex flex-col items-center space-y-2 p-3 rounded-xl transition-all duration-300 ${
-                        isActive
-                          ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg'
-                          : 'text-gray-300 hover:bg-gray-800/80 hover:text-white'
-                      }`}
-                    >
-                      <Icon className={`w-6 h-6 transition-transform duration-300 ${
-                        isActive ? 'scale-110' : ''
-                      }`} />
-                      <span className="font-medium text-xs text-center">{item.shortLabel}</span>
-                    </Link>
-                  );
-                })}
-              </div>
+          <div className="md:hidden border-t border-gray-700">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              {navigationItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = item.path === location.pathname || 
+                  (item.path === '/backstage/prospection' && location.pathname.startsWith('/backstage/prospection'));
+                
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-md text-base font-medium transition-colors ${
+                      isActive
+                        ? 'bg-blue-600 text-white'
+                        : 'text-gray-300 hover:text-white hover:bg-gray-700'
+                    }`}
+                  >
+                    <Icon className="w-6 h-6" />
+                    <span>{item.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
         )}
-      </div>
+      </header>
 
-      {/* Contenu principal - Espacement simplifié */}
-      <main className={`pb-8 transition-all duration-300 ${
-        isMobileMenuOpen 
-          ? 'pt-44' 
-          : 'pt-32 md:pt-40'
+      {/* Contenu principal */}
+      <main className={`transition-all duration-300 ${
+        isMobileMenuOpen ? 'pt-80' : 'pt-32 md:pt-40'
       }`}>
-        <div className="container mx-auto px-3 sm:px-6">
-          <div className="bg-gray-800/50 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="bg-white/5 backdrop-blur-sm rounded-lg shadow-xl border border-gray-700/50">
             <Routes>
               <Route path="/bookings" element={<BookingsList />} />
               <Route path="/messages" element={<MessagesList />} />
