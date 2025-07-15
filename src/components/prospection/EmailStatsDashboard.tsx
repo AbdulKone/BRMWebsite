@@ -26,9 +26,9 @@ interface RecentEmail {
 interface EmailTrackingData {
   id: string;
   subject: string | null;
-  status: string;
+  email_status: string;
   sent_at: string;
-  prospects: Array<{ company_name: string }>;
+  prospects: { company_name: string }[] | null; // Changed from single object to array
 }
 
 const EmailStatsDashboard = () => {
@@ -45,18 +45,29 @@ const EmailStatsDashboard = () => {
 
       const { data, error } = await supabase
         .from('email_tracking')
-        .select('status')
+        .select('email_status')
         .gte('sent_at', dateFilter.toISOString());
 
       if (error) throw error;
 
-      if (!data) {
-        setStats(null);
+      if (!data || data.length === 0) {
+        setStats({
+          total_sent: 0,
+          total_delivered: 0,
+          total_opened: 0,
+          total_clicked: 0,
+          total_bounced: 0,
+          total_complained: 0,
+          delivery_rate: 0,
+          open_rate: 0,
+          click_rate: 0,
+          bounce_rate: 0,
+        });
         return;
       }
 
       const statusCounts = data.reduce((acc, email) => {
-        acc[email.status] = (acc[email.status] || 0) + 1;
+        acc[email.email_status] = (acc[email.email_status] || 0) + 1;
         return acc;
       }, {} as Record<string, number>);
 
@@ -92,28 +103,30 @@ const EmailStatsDashboard = () => {
         .select(`
           id,
           subject,
-          status,
+          email_status,
           sent_at,
-          prospects!inner(company_name)
+          prospects!inner(
+            company_name
+          )
         `)
         .order('sent_at', { ascending: false })
         .limit(10);
-
+  
       if (error) throw error;
-
-      if (!data) {
+  
+      if (!data || data.length === 0) {
         setRecentEmails([]);
         return;
       }
-
+  
       const formattedData = (data as EmailTrackingData[]).map(email => ({
         id: email.id,
         subject: email.subject || 'Sans objet',
-        status: email.status,
+        status: email.email_status,
         sent_at: email.sent_at,
-        prospect_company: email.prospects[0]?.company_name || 'Entreprise inconnue'
+        prospect_company: email.prospects?.[0]?.company_name || 'Entreprise inconnue' // Access first element of array
       }));
-
+  
       setRecentEmails(formattedData);
     } catch (error) {
       console.error('Erreur lors du chargement des emails récents:', error);
