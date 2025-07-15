@@ -18,7 +18,8 @@ export interface EmailTemplate {
   };
 }
 
-export const emailTemplates: EmailTemplate[] = [
+// Templates de base (renommé pour éviter la redéclaration)
+export const baseEmailTemplates: EmailTemplate[] = [
   {
     id: 'visual_intro_advertising',
     name: 'Introduction Spécialisée - Publicité Visuelle',
@@ -374,25 +375,47 @@ Cordialement,
   }
 ];
 
-// Fonctions utilitaires améliorées
-export const getTemplate = (id: string): EmailTemplate | undefined => {
-  return emailTemplates.find(template => template.id === id && template.isActive);
-};
+// Imports des types
+export * from './types/emailTypes';
 
-export const getTemplatesByCategory = (category: EmailTemplate['category']): EmailTemplate[] => {
-  return emailTemplates.filter(template => template.category === category && template.isActive);
-};
+// Imports des constantes
+export * from './constants/emailConstants';
 
-export const getTemplatesByPriority = (priority: EmailTemplate['priority']): EmailTemplate[] => {
-  return emailTemplates.filter(template => template.priority === priority && template.isActive);
-};
+// Imports des templates
+import { musicTemplates } from './templates/musicTemplates';
+import { luxuryTemplates } from './templates/luxuryTemplates';
+import { sportsTemplates } from './templates/sportsTemplates';
+import { weddingTemplates } from './templates/weddingTemplates';
+import { commonTemplates } from './templates/commonTemplates';
 
-export const getTemplateBySegment = (segment: string): EmailTemplate[] => {
-  return emailTemplates.filter(template => 
+// Imports des utilitaires
+export * from './utils/templateUtils';
+export * from './utils/templateCompiler';
+export * from './utils/templateSelector';
+export * from './utils/performanceManager';
+
+// Combinaison de tous les templates (garde le nom emailTemplates)
+export const emailTemplates = [
+  ...baseEmailTemplates,
+  ...musicTemplates,
+  ...luxuryTemplates,
+  ...sportsTemplates,
+  ...weddingTemplates,
+  ...commonTemplates
+];
+
+// Fonctions de convenance qui utilisent la liste consolidée
+export const getTemplate = (id: string) => 
+  emailTemplates.find(template => template.id === id && template.isActive);
+
+export const getTemplatesByCategory = (category: string) => 
+  emailTemplates.filter(template => template.category === category && template.isActive);
+
+export const getTemplatesBySegment = (segment: string) => 
+  emailTemplates.filter(template => 
     template.isActive && 
     (template.segment_targeting?.includes(segment) || !template.segment_targeting)
   );
-};
 
 export const getBestPerformingTemplate = (category: EmailTemplate['category']): EmailTemplate | undefined => {
   const templates = getTemplatesByCategory(category);
