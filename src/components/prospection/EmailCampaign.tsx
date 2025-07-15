@@ -1,7 +1,73 @@
 import { useState } from 'react';
 import { useProspectionStore } from '../../stores/prospectionStore';
 import { emailTemplates, getTemplate, compileTemplate, generateUnsubscribeLink } from '../../data/emailTemplates';
-import { sendEmail } from '../../lib/ses';
+import { supabase } from '../../lib/supabase';
+
+// Fonction pour envoyer via Vercel + SES
+const sendEmailViaVercel = async ({
+  to,
+  subject,
+  body,
+  templateId,
+  prospectId,
+  campaignId
+}: {
+  to: string;
+  subject: string;
+  body: string;
+  templateId: string;
+  prospectId: string;
+  campaignId: string;
+}) => {
+  try {
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to,
+        subject,
+        body,
+        templateId,
+        prospectId,
+        campaignId
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    if (result.success) {
+      // Enregistrer le tracking dans Supabase
+      await supabase.from('email_tracking').insert({
+        prospect_id: prospectId,
+        template_id: templateId,
+        campaign_id: campaignId,
+        email_status: 'sent',
+        sent_at: new Date().toISOString(),
+        subject: subject,
+        message_id: result.messageId
+      });
+
+      // Mettre à jour le prospect
+      await supabase.from('prospects')
+        .update({ 
+          last_email_sent: new Date().toISOString(),
+          status: 'contacted'
+        })
+        .eq('id', prospectId);
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Erreur envoi email via Vercel:', error);
+    return { success: false, error };
+  }
+};
 
 const EmailCampaign = () => {
   const { prospects } = useProspectionStore();
@@ -38,12 +104,12 @@ const EmailCampaign = () => {
     setSendResults({ success: 0, failed: 0 });
     
     const campaignId = `campaign_${Date.now()}`;
-  
+
     try {
       for (const prospectId of selectedProspects) {
         const prospect = prospects.find(p => p.id === prospectId);
         if (!prospect) continue;
-  
+
         try {
           // Validation de l'email
           if (!prospect.email || !prospect.email.includes('@')) {
@@ -51,7 +117,7 @@ const EmailCampaign = () => {
             setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
             continue;
           }
-  
+
           const unsubscribeLink = generateUnsubscribeLink(prospect.id, campaignId);
           const compiledEmail = compileTemplate(template, {
             contact_name: prospect.contact_name,
@@ -60,15 +126,17 @@ const EmailCampaign = () => {
             project_name: 'Votre Projet',
             unsubscribe_link: unsubscribeLink
           });
-  
-          // Envoi via backend
-          const result = await sendEmail({
+
+          // Envoi via Vercel + SES
+          const result = await sendEmailViaVercel({
             to: prospect.email,
             subject: compiledEmail.subject,
             body: compiledEmail.body,
-            configurationSetName: 'email_tracking'
-            });
-  
+            templateId: template.id,
+            prospectId: prospect.id,
+            campaignId
+          });
+
           if (result.success) {
             setSendResults(prev => ({ ...prev, success: prev.success + 1 }));
           } else {
