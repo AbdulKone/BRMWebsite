@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useProspectionStore } from '../../stores/prospectionStore';
 import { emailTemplates, getTemplate, compileTemplate, generateUnsubscribeLink } from '../../data/emailTemplates';
 import { sendEmail } from '../../lib/ses';
-import { supabase } from '../../lib/supabase';
 
 const EmailCampaign = () => {
   const { prospects } = useProspectionStore();
@@ -34,10 +33,10 @@ const EmailCampaign = () => {
   const handleSend = async () => {
     const template = getTemplate(selectedTemplate);
     if (!template) return;
-  
+
     setSending(true);
     setSendResults({ success: 0, failed: 0 });
-  
+    
     const campaignId = `campaign_${Date.now()}`;
   
     try {
@@ -46,7 +45,7 @@ const EmailCampaign = () => {
         if (!prospect) continue;
   
         try {
-          // Validation de l'email avant envoi
+          // Validation de l'email
           if (!prospect.email || !prospect.email.includes('@')) {
             console.error('Email invalide pour:', prospect.contact_name);
             setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
@@ -62,34 +61,15 @@ const EmailCampaign = () => {
             unsubscribe_link: unsubscribeLink
           });
   
-          // Envoi de l'email
+          // Envoi via backend
           const result = await sendEmail({
             to: prospect.email,
             subject: compiledEmail.subject,
             body: compiledEmail.body,
             configurationSetName: 'email_tracking'
-          });
-  
-          if (result.success) {
-            // Enregistrement du suivi
-            await supabase.from('email_tracking').insert({
-              prospect_id: prospect.id,
-              template_id: template.id,
-              campaign_id: campaignId,
-              email_status: 'sent',
-              sent_at: new Date().toISOString(),
-              subject: compiledEmail.subject,
-              message_id: result.messageId
             });
   
-            // Mise à jour du prospect
-            await supabase.from('prospects')
-              .update({ 
-                last_email_sent: new Date().toISOString(),
-                status: 'contacted'
-              })
-              .eq('id', prospect.id);
-  
+          if (result.success) {
             setSendResults(prev => ({ ...prev, success: prev.success + 1 }));
           } else {
             console.error('Échec envoi email pour:', prospect.contact_name, result.error);
