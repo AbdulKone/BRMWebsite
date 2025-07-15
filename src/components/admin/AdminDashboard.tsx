@@ -30,42 +30,42 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <nav className="bg-gray-900 p-4">
+    <div className="min-h-screen bg-black text-white pt-20">
+      <nav className="bg-gray-900 p-4 sticky top-20 z-40">
         <div className="container mx-auto flex space-x-4 overflow-x-auto">
           <Link
             to="/backstage/bookings"
-            className={`px-4 py-2 rounded ${location.pathname === '/backstage/bookings' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+            className={`px-4 py-2 rounded whitespace-nowrap ${location.pathname === '/backstage/bookings' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
           >
             Réservations
           </Link>
           <Link
             to="/backstage/messages"
-            className={`px-4 py-2 rounded ${location.pathname === '/backstage/messages' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+            className={`px-4 py-2 rounded whitespace-nowrap ${location.pathname === '/backstage/messages' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
           >
             Messages
           </Link>
           <Link
             to="/backstage/projects"
-            className={`px-4 py-2 rounded ${location.pathname === '/backstage/projects' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+            className={`px-4 py-2 rounded whitespace-nowrap ${location.pathname === '/backstage/projects' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
           >
             Projets
           </Link>
           <Link
             to="/backstage/artists"
-            className={`px-4 py-2 rounded ${location.pathname === '/backstage/artists' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+            className={`px-4 py-2 rounded whitespace-nowrap ${location.pathname === '/backstage/artists' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
           >
             Artistes
           </Link>
           <Link
             to="/backstage/services"
-            className={`px-4 py-2 rounded ${location.pathname === '/backstage/services' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+            className={`px-4 py-2 rounded whitespace-nowrap ${location.pathname === '/backstage/services' ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
           >
             Services
           </Link>
           <Link
             to="/backstage/prospection"
-            className={`px-4 py-2 rounded ${location.pathname.startsWith('/backstage/prospection') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
+            className={`px-4 py-2 rounded whitespace-nowrap ${location.pathname.startsWith('/backstage/prospection') ? 'bg-blue-600' : 'hover:bg-gray-800'}`}
           >
             Prospection
           </Link>
