@@ -69,6 +69,31 @@ const sendEmailViaVercel = async ({
   }
 };
 
+// Fonction de test temporaire
+const sendEmailTest = async (emailData: any) => {
+  console.log('Test envoi email:', emailData);
+  
+  // Simuler un succès pour tester l'interface
+  await new Promise(resolve => setTimeout(resolve, 1000));
+  
+  // Enregistrer dans Supabase pour le tracking
+  await supabase.from('email_tracking').insert({
+    prospect_id: emailData.prospectId,
+    template_id: emailData.templateId,
+    campaign_id: emailData.campaignId,
+    email_status: 'sent',
+    sent_at: new Date().toISOString(),
+    subject: emailData.subject,
+    message_id: 'test-' + Date.now()
+  });
+  
+  return { success: true, messageId: 'test-' + Date.now() };
+};
+
+// Dans handleSend, remplacez temporairement :
+// const result = await sendEmailViaVercel({
+// par :
+// const result = await sendEmailTest({
 const EmailCampaign = () => {
   const { prospects } = useProspectionStore();
   const [selectedTemplate, setSelectedTemplate] = useState('');
