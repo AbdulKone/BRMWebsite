@@ -93,7 +93,10 @@ const EmailCampaign = () => {
       unsubscribe_link: unsubscribeLink
     });
 
-    setPreviewEmail(compiledEmail);
+    setPreviewEmail({
+      subject: compiledEmail.subject,
+      body: compiledEmail.content
+    });
   };
 
   const handleSend = async () => {
@@ -118,7 +121,7 @@ const EmailCampaign = () => {
             continue;
           }
 
-          const unsubscribeLink = generateUnsubscribeLink(prospect.id, campaignId);
+          const unsubscribeLink = generateUnsubscribeLink(prospect.id);
           const compiledEmail = compileTemplate(template, {
             contact_name: prospect.contact_name,
             sender_name: 'Black Road Music',
@@ -131,7 +134,7 @@ const EmailCampaign = () => {
           const result = await sendEmailViaVercel({
             to: prospect.email,
             subject: compiledEmail.subject,
-            body: compiledEmail.body,
+            body: compiledEmail.content,
             templateId: template.id,
             prospectId: prospect.id,
             campaignId
@@ -182,7 +185,7 @@ const EmailCampaign = () => {
           Sélectionner les prospects ({selectedProspects.length} sélectionnés)
         </label>
         <div className="max-h-60 overflow-y-auto border border-gray-300 rounded-lg">
-          {prospects.filter(p => p.status === 'new' || p.status === 'contacted' || p.status === 'interested' || p.status === 'not_interested').map(prospect => (
+          {prospects.filter(p => p.status === 'new' || p.status === 'contacted' || p.status === 'interested').map(prospect => (
             <label key={prospect.id} className="flex items-center p-3 hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"

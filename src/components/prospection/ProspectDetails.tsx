@@ -3,7 +3,12 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useProspectionStore } from '../../stores/prospectionStore';
 import { supabase } from '../../lib/supabase';
-import { Mail, Phone, Building, User, Calendar, MessageSquare, History, X } from 'lucide-react';
+import { emailSequences, startEmailSequence, stopEmailSequence } from '../../data/emailSequences';
+import { ProspectionAnalytics } from '../../data/prospectionAnalytics';
+import { 
+  Mail, Phone, Building, User, Calendar, MessageSquare, History, X, 
+  TrendingUp, AlertTriangle, Play, Square, Target, BarChart3 
+} from 'lucide-react';
 
 interface ProspectDetailsProps {
   prospectId: string;
@@ -18,20 +23,42 @@ interface EmailTracking {
   status: string;
   sent_at: string;
   updated_at: string;
+  opened_at?: string;
+  responded_at?: string;
+  sequence_id?: string;
+  step_id?: string;
+}
+
+interface ProspectMetrics {
+  leadScore: number;
+  conversionProbability: number;
+  daysSinceLastContact: number;
+  emailsSent: number;
+  emailsOpened: number;
+  responseRate: number;
+  churnRisk: number;
 }
 
 const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) => {
-  const { prospects, updateProspect } = useProspectionStore();
+  const { prospects, updateProspect, calculateLeadScore, enrichProspectData } = useProspectionStore();
   const [emailHistory, setEmailHistory] = useState<EmailTracking[]>([]);
+  const [prospectMetrics, setProspectMetrics] = useState<ProspectMetrics | null>(null);
+  const [activeSequences, setActiveSequences] = useState<string[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [isLoadingMetrics, setIsLoadingMetrics] = useState(true);
   const [newNote, setNewNote] = useState('');
   const [isAddingNote, setIsAddingNote] = useState(false);
+  const [selectedSequence, setSelectedSequence] = useState('');
+  const [isStartingSequence, setIsStartingSequence] = useState(false);
   
   const prospect = prospects.find(p => p.id === prospectId);
 
   useEffect(() => {
     if (prospectId) {
       loadEmailHistory();
+      loadProspectMetrics();
+      loadActiveSequences();
+      enrichProspectIfNeeded();
     }
   }, [prospectId]);
 
@@ -52,12 +79,93 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
     }
   };
 
+  const loadProspectMetrics = async () => {
+    try {
+      const emails = await supabase
+        .from('email_tracking')
+        .select('*')
+        .eq('prospect_id', prospectId);
+
+      if (emails.data) {
+        const emailsSent = emails.data.length;
+        const emailsOpened = emails.data.filter(e => e.opened_at).length;
+        const emailsResponded = emails.data.filter(e => e.responded_at).length;
+        
+        const responseRate = emailsSent > 0 ? (emailsResponded / emailsSent) * 100 : 0;
+        const openRate = emailsSent > 0 ? (emailsOpened / emailsSent) * 100 : 0;
+        
+        const lastContact = prospect?.last_contact ? new Date(prospect.last_contact) : new Date();
+        const daysSinceLastContact = Math.floor((Date.now() - lastContact.getTime()) / (1000 * 60 * 60 * 24));
+        
+        // Calcul du score de lead - récupérer l'objet LeadScore complet
+        const leadScoreObj = await calculateLeadScore(prospectId);
+        const leadScore = leadScoreObj.total; // Extraire la valeur numérique
+        
+        // Calcul de la probabilité de conversion
+        let conversionProbability = 0;
+        if (prospect?.status === 'interested') conversionProbability += 40;
+        if (prospect?.status === 'contacted') conversionProbability += 20;
+        if (responseRate > 50) conversionProbability += 30;
+        if (openRate > 70) conversionProbability += 20;
+        if (daysSinceLastContact < 7) conversionProbability += 10;
+        
+        // Calcul du risque de churn
+        let churnRisk = 0;
+        if (daysSinceLastContact > 30) churnRisk += 40;
+        if (daysSinceLastContact > 60) churnRisk += 30;
+        if (responseRate === 0 && emailsSent > 2) churnRisk += 30;
+        
+        setProspectMetrics({
+          leadScore, // Maintenant c'est un number
+          conversionProbability: Math.min(conversionProbability, 100),
+          daysSinceLastContact,
+          emailsSent,
+          emailsOpened,
+          responseRate,
+          churnRisk: Math.min(churnRisk, 100)
+        });
+      }
+    } catch (error) {
+      console.error('Erreur lors du calcul des métriques:', error);
+    } finally {
+      setIsLoadingMetrics(false);
+    }
+  };
+
+  const loadActiveSequences = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('scheduled_emails')
+        .select('sequence_id')
+        .eq('prospect_id', prospectId)
+        .eq('status', 'pending');
+
+      if (error) throw error;
+      const sequences = [...new Set(data?.map(d => d.sequence_id) || [])];
+      setActiveSequences(sequences);
+    } catch (error) {
+      console.error('Erreur lors du chargement des séquences actives:', error);
+    }
+  };
+
+  const enrichProspectIfNeeded = async () => {
+    if (prospect && !prospect.enriched_data) {
+      try {
+        await enrichProspectData(prospectId);
+      } catch (error) {
+        console.error('Erreur lors de l\'enrichissement:', error);
+      }
+    }
+  };
+
   const handleStatusChange = async (status: string) => {
     try {
       await updateProspect(prospectId, { 
-        status: status as "new" | "contacted" | "interested" | "not_interested",
+        status: status as "new" | "contacted" | "interested" | "proposal_sent" | "negotiating" | "won" | "lost" | "nurturing",
         last_contact: new Date().toISOString()
       });
+      // Recalculer les métriques après changement de statut
+      loadProspectMetrics();
     } catch (error) {
       console.error('Erreur lors de la mise à jour du statut:', error);
     }
@@ -79,10 +187,35 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
         last_contact: new Date().toISOString()
       });
       setNewNote('');
+      loadProspectMetrics(); // Recalculer les métriques
     } catch (error) {
       console.error('Erreur lors de l\'ajout de la note:', error);
     } finally {
       setIsAddingNote(false);
+    }
+  };
+
+  const handleStartSequence = async () => {
+    if (!selectedSequence) return;
+    
+    setIsStartingSequence(true);
+    try {
+      await startEmailSequence(prospectId, selectedSequence);
+      await loadActiveSequences();
+      setSelectedSequence('');
+    } catch (error) {
+      console.error('Erreur lors du démarrage de la séquence:', error);
+    } finally {
+      setIsStartingSequence(false);
+    }
+  };
+
+  const handleStopSequence = async (sequenceId: string) => {
+    try {
+      await stopEmailSequence(prospectId, sequenceId);
+      await loadActiveSequences();
+    } catch (error) {
+      console.error('Erreur lors de l\'arrêt de la séquence:', error);
     }
   };
 
@@ -91,7 +224,11 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
       case 'new': return 'bg-blue-500';
       case 'contacted': return 'bg-yellow-500';
       case 'interested': return 'bg-green-500';
-      case 'not_interested': return 'bg-red-500';
+      case 'proposal_sent': return 'bg-purple-500';
+      case 'negotiating': return 'bg-orange-500';
+      case 'won': return 'bg-green-600';
+      case 'lost': return 'bg-red-500';
+      case 'nurturing': return 'bg-indigo-500';
       default: return 'bg-gray-500';
     }
   };
@@ -101,7 +238,11 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
       case 'new': return 'Nouveau';
       case 'contacted': return 'Contacté';
       case 'interested': return 'Intéressé';
-      case 'not_interested': return 'Pas intéressé';
+      case 'proposal_sent': return 'Proposition envoyée';
+      case 'negotiating': return 'En négociation';
+      case 'won': return 'Gagné';
+      case 'lost': return 'Perdu';
+      case 'nurturing': return 'En nurturing';
       default: return status;
     }
   };
@@ -118,17 +259,36 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
     }
   };
 
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-400';
+    if (score >= 60) return 'text-yellow-400';
+    if (score >= 40) return 'text-orange-400';
+    return 'text-red-400';
+  };
+
+  const getRiskColor = (risk: number) => {
+    if (risk >= 70) return 'text-red-400';
+    if (risk >= 40) return 'text-yellow-400';
+    return 'text-green-400';
+  };
+
   if (!prospect) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-gray-900 p-6 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-gray-900 p-6 rounded-lg w-full max-w-6xl max-h-[90vh] overflow-y-auto">
         <div className="flex justify-between items-start mb-6">
           <div className="flex items-center space-x-3">
             <h2 className="text-2xl font-bold">{prospect.company_name}</h2>
             <span className={`px-3 py-1 rounded-full text-sm font-medium text-white ${getStatusColor(prospect.status)}`}>
               {getStatusLabel(prospect.status)}
             </span>
+            {prospectMetrics && prospectMetrics.churnRisk > 70 && (
+              <span className="px-2 py-1 bg-red-600 text-white text-xs rounded-full flex items-center space-x-1">
+                <AlertTriangle className="w-3 h-3" />
+                <span>Risque élevé</span>
+              </span>
+            )}
           </div>
           <div className="flex items-center space-x-2">
             <button
@@ -146,7 +306,7 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Informations du prospect */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold mb-3">Informations</h3>
@@ -177,10 +337,64 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
               <div className="flex items-center space-x-3">
                 <Calendar className="w-5 h-5 text-gray-400" />
                 <span>
-                  Dernier contact: {format(new Date(prospect.last_contact), 'PPP à HH:mm', { locale: fr })}
+                  Dernier contact: {prospect.last_contact 
+                    ? format(new Date(prospect.last_contact), 'PPP à HH:mm', { locale: fr })
+                    : 'Aucun contact enregistré'
+                  }
                 </span>
               </div>
             </div>
+
+            {/* Métriques du prospect */}
+            {prospectMetrics && (
+              <div className="bg-gray-800 p-4 rounded border border-gray-700">
+                <div className="flex items-center space-x-2 mb-3">
+                  <BarChart3 className="w-5 h-5 text-gray-400" />
+                  <h4 className="font-semibold">Métriques</h4>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-gray-400">Score Lead:</span>
+                    <span className={`ml-2 font-medium ${getScoreColor(prospectMetrics.leadScore)}`}>
+                      {prospectMetrics.leadScore}/100
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Conversion:</span>
+                    <span className={`ml-2 font-medium ${getScoreColor(prospectMetrics.conversionProbability)}`}>
+                      {prospectMetrics.conversionProbability}%
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Emails envoyés:</span>
+                    <span className="ml-2 font-medium text-blue-400">
+                      {prospectMetrics.emailsSent}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Taux réponse:</span>
+                    <span className={`ml-2 font-medium ${getScoreColor(prospectMetrics.responseRate)}`}>
+                      {prospectMetrics.responseRate.toFixed(1)}%
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Risque churn:</span>
+                    <span className={`ml-2 font-medium ${getRiskColor(prospectMetrics.churnRisk)}`}>
+                      {prospectMetrics.churnRisk}%
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-gray-400">Jours silence:</span>
+                    <span className={`ml-2 font-medium ${
+                      prospectMetrics.daysSinceLastContact > 30 ? 'text-red-400' : 
+                      prospectMetrics.daysSinceLastContact > 14 ? 'text-yellow-400' : 'text-green-400'
+                    }`}>
+                      {prospectMetrics.daysSinceLastContact}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Changement de statut */}
             <div className="space-y-2">
@@ -193,8 +407,73 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
                 <option value="new">Nouveau</option>
                 <option value="contacted">Contacté</option>
                 <option value="interested">Intéressé</option>
-                <option value="not_interested">Pas intéressé</option>
+                <option value="proposal_sent">Proposition envoyée</option>
+                <option value="negotiating">En négociation</option>
+                <option value="won">Gagné</option>
+                <option value="lost">Perdu</option>
+                <option value="nurturing">En nurturing</option>
               </select>
+            </div>
+          </div>
+
+          {/* Séquences d'emails */}
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Target className="w-5 h-5 text-gray-400" />
+              <h3 className="text-lg font-semibold">Séquences d'emails</h3>
+            </div>
+            
+            {/* Séquences actives */}
+            {activeSequences.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium text-green-400">Séquences actives</h4>
+                {activeSequences.map(sequenceId => {
+                  const sequence = emailSequences.find(s => s.id === sequenceId);
+                  return (
+                    <div key={sequenceId} className="bg-green-900/20 border border-green-700 p-3 rounded">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{sequence?.name || sequenceId}</span>
+                        <button
+                          onClick={() => handleStopSequence(sequenceId)}
+                          className="p-1 text-red-400 hover:text-red-300 transition-colors"
+                          title="Arrêter la séquence"
+                        >
+                          <Square className="w-4 h-4" />
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">{sequence?.description}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            
+            {/* Démarrer une nouvelle séquence */}
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Démarrer une séquence</h4>
+              <select
+                value={selectedSequence}
+                onChange={(e) => setSelectedSequence(e.target.value)}
+                className="w-full p-2 rounded bg-gray-800 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+              >
+                <option value="">Sélectionner une séquence...</option>
+                {emailSequences
+                  .filter(seq => !activeSequences.includes(seq.id))
+                  .map(sequence => (
+                    <option key={sequence.id} value={sequence.id}>
+                      {sequence.name}
+                    </option>
+                  ))
+                }
+              </select>
+              <button
+                onClick={handleStartSequence}
+                disabled={!selectedSequence || isStartingSequence}
+                className="w-full px-3 py-2 bg-blue-600 hover:bg-blue-500 rounded text-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
+              >
+                <Play className="w-4 h-4" />
+                <span>{isStartingSequence ? 'Démarrage...' : 'Démarrer la séquence'}</span>
+              </button>
             </div>
           </div>
 
@@ -217,16 +496,26 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
                   <div key={email.id} className="bg-gray-800 p-3 rounded border border-gray-700">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-medium text-sm">{email.subject}</h4>
-                      <span className={`text-xs font-medium ${getEmailStatusColor(email.status)}`}>
-                        {email.status.toUpperCase()}
-                      </span>
+                      <div className="flex items-center space-x-2">
+                        {email.sequence_id && (
+                          <span className="text-xs bg-blue-600 px-2 py-1 rounded">Séquence</span>
+                        )}
+                        <span className={`text-xs font-medium ${getEmailStatusColor(email.status)}`}>
+                          {email.status.toUpperCase()}
+                        </span>
+                      </div>
                     </div>
                     <p className="text-gray-400 text-xs">
                       Envoyé le {format(new Date(email.sent_at), 'PPP à HH:mm', { locale: fr })}
                     </p>
-                    {email.updated_at !== email.sent_at && (
-                      <p className="text-gray-500 text-xs">
-                        Mis à jour le {format(new Date(email.updated_at), 'PPP à HH:mm', { locale: fr })}
+                    {email.opened_at && (
+                      <p className="text-purple-400 text-xs">
+                        Ouvert le {format(new Date(email.opened_at), 'PPP à HH:mm', { locale: fr })}
+                      </p>
+                    )}
+                    {email.responded_at && (
+                      <p className="text-green-400 text-xs">
+                        Répondu le {format(new Date(email.responded_at), 'PPP à HH:mm', { locale: fr })}
                       </p>
                     )}
                   </div>
