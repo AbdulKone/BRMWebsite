@@ -1,0 +1,16 @@
+# Variables d'environnement
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Clés AWS
+*.pem
+*.key
+aws-credentials
+
+# Fichiers de configuration sensibles
+.aws/
+config.json
+secrets.json
