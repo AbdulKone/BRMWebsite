@@ -248,7 +248,7 @@ const EmailCampaign = () => {
             <div className="mb-2">
               <strong>Sujet :</strong> {previewEmail.subject}
             </div>
-            <div className="whitespace-pre-wrap text-sm">{previewEmail.body}</div>
+            <div className="whitespace-pre-wrap text-sm text-black">{previewEmail.body}</div>
           </div>
         </div>
       )}
