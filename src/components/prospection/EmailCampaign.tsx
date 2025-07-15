@@ -34,18 +34,25 @@ const EmailCampaign = () => {
   const handleSend = async () => {
     const template = getTemplate(selectedTemplate);
     if (!template) return;
-
+  
     setSending(true);
     setSendResults({ success: 0, failed: 0 });
-    
+  
     const campaignId = `campaign_${Date.now()}`;
-
+  
     try {
       for (const prospectId of selectedProspects) {
         const prospect = prospects.find(p => p.id === prospectId);
         if (!prospect) continue;
-
+  
         try {
+          // Validation de l'email avant envoi
+          if (!prospect.email || !prospect.email.includes('@')) {
+            console.error('Email invalide pour:', prospect.contact_name);
+            setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
+            continue;
+          }
+  
           const unsubscribeLink = generateUnsubscribeLink(prospect.id, campaignId);
           const compiledEmail = compileTemplate(template, {
             contact_name: prospect.contact_name,
@@ -54,7 +61,7 @@ const EmailCampaign = () => {
             project_name: 'Votre Projet',
             unsubscribe_link: unsubscribeLink
           });
-
+  
           // Envoi de l'email
           const result = await sendEmail({
             to: prospect.email,
@@ -62,7 +69,7 @@ const EmailCampaign = () => {
             body: compiledEmail.body,
             configurationSetName: 'email_tracking'
           });
-
+  
           if (result.success) {
             // Enregistrement du suivi
             await supabase.from('email_tracking').insert({
@@ -74,7 +81,7 @@ const EmailCampaign = () => {
               subject: compiledEmail.subject,
               message_id: result.messageId
             });
-
+  
             // Mise à jour du prospect
             await supabase.from('prospects')
               .update({ 
@@ -82,13 +89,14 @@ const EmailCampaign = () => {
                 status: 'contacted'
               })
               .eq('id', prospect.id);
-
+  
             setSendResults(prev => ({ ...prev, success: prev.success + 1 }));
           } else {
+            console.error('Échec envoi email pour:', prospect.contact_name, result.error);
             setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
           }
         } catch (error) {
-          console.error('Erreur envoi email:', error);
+          console.error('Erreur envoi email pour:', prospect.contact_name, error);
           setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
         }
       }
