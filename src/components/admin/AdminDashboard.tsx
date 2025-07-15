@@ -106,8 +106,8 @@ const AdminDashboard = () => {
         </div>
       </div>
 
-      {/* Navigation moderne avec icônes */}
-      <nav className="fixed top-32 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-sm shadow-xl">
+      {/* Navigation moderne avec icônes - collée au header */}
+      <nav className="fixed top-28 left-0 right-0 z-40 bg-gray-900/95 backdrop-blur-sm shadow-xl">
         <div className="container mx-auto px-6">
           <div className="flex space-x-1 overflow-x-auto scrollbar-hide py-3">
             {navigationItems.map((item) => {
@@ -147,7 +147,7 @@ const AdminDashboard = () => {
       </nav>
 
       {/* Contenu principal avec espacement optimisé */}
-      <main className="pt-44 pb-8">
+      <main className="pt-40 pb-8">
         <div className="container mx-auto px-6">
           <div className="bg-gray-800/50 backdrop-blur-sm rounded-2xl shadow-2xl border border-gray-700/50 overflow-hidden">
             <Routes>
