@@ -15,10 +15,10 @@ import UnsubscribeManager from './components/prospection/UnsubscribeManager';
 import { useAuthStore } from './stores/authStore';
 
 function App() {
-  const { checkAuth } = useAuthStore();
+  const { initialize } = useAuthStore();
 
   useEffect(() => {
-    checkAuth();
+    initialize();
   }, []);
 
   return (

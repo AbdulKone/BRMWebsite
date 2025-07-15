@@ -9,9 +9,10 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   checkAuth: () => Promise<void>;
+  initialize: () => void;
 }
 
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   isAdmin: false,
   isLoading: true,
@@ -88,5 +89,47 @@ export const useAuthStore = create<AuthState>((set) => ({
     } finally {
       set({ isLoading: false });
     }
+  },
+
+  initialize: () => {
+    // Vérifier la session actuelle
+    get().checkAuth();
+
+    // Écouter les changements d'état d'authentification
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Auth state changed:', event, session?.user?.email);
+      
+      if (event === 'SIGNED_OUT' || !session) {
+        set({ 
+          isAuthenticated: false, 
+          isAdmin: false, 
+          isLoading: false,
+          error: null 
+        });
+        return;
+      }
+
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        const isAdmin = session.user.app_metadata?.role === 'admin';
+        
+        if (!isAdmin) {
+          await supabase.auth.signOut();
+          set({ 
+            isAuthenticated: false, 
+            isAdmin: false, 
+            isLoading: false,
+            error: 'Accès non autorisé. Seuls les administrateurs peuvent se connecter.' 
+          });
+          return;
+        }
+
+        set({ 
+          isAuthenticated: true, 
+          isAdmin: true, 
+          isLoading: false,
+          error: null 
+        });
+      }
+    });
   },
 }));
