@@ -279,3 +279,50 @@ const EmailCampaign = () => {
 };
 
 export default EmailCampaign;
+
+
+// Fonction de test temporaire - remplacez la ligne 72
+const testAWSConnection = async () => {
+  try {
+    console.log('🧪 Test de connexion AWS SES...');
+    
+    const response = await fetch('/api/send-email', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        to: 'blackroadmusic@hotmail.com', // Utilisez votre email vérifié
+        subject: 'Test AWS SES - ' + new Date().toLocaleString(),
+        body: '<h1>Test de connexion</h1><p>Si vous recevez cet email, AWS SES fonctionne correctement !</p>',
+        templateId: 'test',
+        prospectId: 'test-prospect',
+        campaignId: 'test-campaign'
+      })
+    });
+    
+    const responseText = await response.text();
+    console.log('📋 Réponse brute:', responseText);
+    
+    if (response.ok) {
+      const result = JSON.parse(responseText);
+      console.log('✅ Test réussi:', result);
+      alert(`✅ Test AWS SES réussi !\nMessage ID: ${result.messageId}`);
+    } else {
+      console.error('Erreur HTTP:', response.status, responseText);
+      alert(`Erreur ${response.status}: ${responseText}`);
+    }
+  } catch (error) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  console.error('❌ Erreur réseau:', error);
+  alert(`❌ Erreur réseau: ${errorMessage}`);
+}
+};
+
+// Ajoutez ce bouton temporairement dans votre interface
+// <button 
+//   onClick={testAWSConnection}
+//   className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
+// >
+//   🧪 Tester AWS SES
+// </button>

@@ -24,6 +24,14 @@ export default async function handler(req, res) {
   }
 
   try {
+    // Ajoutez ces logs de debug
+    console.log('Environment variables check:', {
+      region: process.env.AWS_REGION,
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID ? 'SET' : 'MISSING',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ? 'SET' : 'MISSING',
+      senderEmail: process.env.SES_SENDER_EMAIL
+    });
+    
     const { to, subject, body, templateId, prospectId, campaignId } = req.body;
 
     // Validation des données
@@ -52,7 +60,8 @@ export default async function handler(req, res) {
           },
         },
       },
-      ConfigurationSetName: 'email_tracking', // Optionnel
+      // Retirez temporairement ConfigurationSetName si vous n'en avez pas
+      // ConfigurationSetName: 'email_tracking',
     };
 
     // Envoi de l'email via SES
@@ -75,11 +84,17 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Erreur lors de l\'envoi de l\'email:', error);
+    console.error('Erreur détaillée:', {
+      message: error.message,
+      code: error.Code,
+      statusCode: error.$metadata?.httpStatusCode,
+      requestId: error.$metadata?.requestId
+    });
     
     return res.status(500).json({
       success: false,
-      error: error.message || 'Erreur interne du serveur'
+      error: error.message || 'Erreur interne du serveur',
+      code: error.Code
     });
   }
 }
