@@ -59,7 +59,7 @@ const ParallaxHero = () => {
           transition={{ duration: 1, delay: 1 }}
         >
           <p className="text-xl md:text-2xl font-light mb-8 text-gray-200 text-shadow max-w-3xl mx-auto">
-            Label de production spécialisé dans les musiques urbaines et l'accompagnement artistique complet
+            Label de production spécialisé dans l'accompagnement artistique complet et la création de contenu audiovisuel.
           </p>
         </motion.div>
         
