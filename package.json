@@ -16,6 +16,7 @@
     "validate": "npm run typecheck && npm run lint && npm run test"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.844.0",
     "@headlessui/react": "^1.7.18",
     "@supabase/supabase-js": "^2.39.8",
     "date-fns": "^3.3.1",

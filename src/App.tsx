@@ -11,6 +11,7 @@ import AdminDashboard from './components/admin/AdminDashboard';
 import BookingPage from './components/booking/BookingPage';
 import LoginPage from './components/auth/LoginPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
+import UnsubscribeManager from './components/prospection/UnsubscribeManager';
 import { useAuthStore } from './stores/authStore';
 
 function App() {
@@ -30,6 +31,7 @@ function App() {
         <Route path="/politique-de-confidentialite" element={<PrivacyPage />} />
         <Route path="/mentions-legales" element={<LegalNoticePage />} />
         <Route path="/reserver" element={<BookingPage />} />
+        <Route path="/unsubscribe" element={<UnsubscribeManager />} />
         <Route path="/backstage/login" element={<LoginPage />} />
         <Route
           path="/backstage/*"

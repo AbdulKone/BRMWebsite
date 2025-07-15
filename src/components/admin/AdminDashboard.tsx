@@ -15,7 +15,7 @@ const AdminDashboard = () => {
   const location = useLocation();
   const { fetchBookings, fetchMessages } = useAdminStore();
   const { fetchProjects, fetchArtists, fetchServices } = useContentStore();
-  const { fetchProspects } = useProspectionStore();
+  const { loadProspects } = useProspectionStore();
 
   useEffect(() => {
     fetchBookings();
@@ -23,7 +23,7 @@ const AdminDashboard = () => {
     fetchProjects();
     fetchArtists();
     fetchServices();
-    fetchProspects();
+    loadProspects();
   }, []);
 
   if (location.pathname === '/backstage') {

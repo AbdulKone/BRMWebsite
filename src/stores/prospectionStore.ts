@@ -1,26 +1,30 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 
-interface Prospect {
+export interface Prospect {
   id: string;
   company_name: string;
   contact_name: string;
   email: string;
-  phone: string;
+  phone?: string;
+  notes?: string;
   status: 'new' | 'contacted' | 'interested' | 'not_interested';
   last_contact: string;
-  notes: string;
   created_at: string;
+  updated_at: string;
 }
 
 interface ProspectionState {
   prospects: Prospect[];
   isLoading: boolean;
   error: string | null;
-  fetchProspects: () => Promise<void>;
-  addProspect: (prospect: Omit<Prospect, 'id' | 'created_at'>) => Promise<void>;
-  updateProspect: (id: string, data: Partial<Prospect>) => Promise<void>;
+  
+  // Actions
+  loadProspects: () => Promise<void>;
+  addProspect: (prospect: Omit<Prospect, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
+  updateProspect: (id: string, updates: Partial<Prospect>) => Promise<void>;
   deleteProspect: (id: string) => Promise<void>;
+  clearError: () => void;
 }
 
 export const useProspectionStore = create<ProspectionState>((set, get) => ({
@@ -28,7 +32,7 @@ export const useProspectionStore = create<ProspectionState>((set, get) => ({
   isLoading: false,
   error: null,
 
-  fetchProspects: async () => {
+  loadProspects: async () => {
     set({ isLoading: true, error: null });
     try {
       const { data, error } = await supabase
@@ -37,49 +41,62 @@ export const useProspectionStore = create<ProspectionState>((set, get) => ({
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      set({ prospects: data });
+      set({ prospects: data || [], isLoading: false });
     } catch (error) {
-      set({ error: error.message });
-    } finally {
-      set({ isLoading: false });
+      set({ 
+        error: error instanceof Error ? error.message : 'Erreur lors du chargement des prospects',
+        isLoading: false 
+      });
     }
   },
 
-  addProspect: async (prospect) => {
-    set({ isLoading: true, error: null });
+  addProspect: async (prospectData) => {
+    set({ error: null });
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('prospects')
-        .insert([prospect]);
+        .insert([prospectData])
+        .select()
+        .single();
 
       if (error) throw error;
-      get().fetchProspects();
+      
+      set(state => ({
+        prospects: [data, ...state.prospects]
+      }));
     } catch (error) {
-      set({ error: error.message });
-    } finally {
-      set({ isLoading: false });
+      set({ 
+        error: error instanceof Error ? error.message : 'Erreur lors de l\'ajout du prospect'
+      });
+      throw error;
     }
   },
 
-  updateProspect: async (id, data) => {
-    set({ isLoading: true, error: null });
+  updateProspect: async (id, updates) => {
+    set({ error: null });
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('prospects')
-        .update(data)
-        .eq('id', id);
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
 
       if (error) throw error;
-      get().fetchProspects();
+      
+      set(state => ({
+        prospects: state.prospects.map(p => p.id === id ? data : p)
+      }));
     } catch (error) {
-      set({ error: error.message });
-    } finally {
-      set({ isLoading: false });
+      set({ 
+        error: error instanceof Error ? error.message : 'Erreur lors de la mise à jour du prospect'
+      });
+      throw error;
     }
   },
 
   deleteProspect: async (id) => {
-    set({ isLoading: true, error: null });
+    set({ error: null });
     try {
       const { error } = await supabase
         .from('prospects')
@@ -87,11 +104,17 @@ export const useProspectionStore = create<ProspectionState>((set, get) => ({
         .eq('id', id);
 
       if (error) throw error;
-      get().fetchProspects();
+      
+      set(state => ({
+        prospects: state.prospects.filter(p => p.id !== id)
+      }));
     } catch (error) {
-      set({ error: error.message });
-    } finally {
-      set({ isLoading: false });
+      set({ 
+        error: error instanceof Error ? error.message : 'Erreur lors de la suppression du prospect'
+      });
+      throw error;
     }
   },
+
+  clearError: () => set({ error: null })
 }));

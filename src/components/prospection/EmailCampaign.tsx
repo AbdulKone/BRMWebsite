@@ -1,12 +1,16 @@
 import { useState } from 'react';
 import { useProspectionStore } from '../../stores/prospectionStore';
-import { emailTemplates, getTemplate, compileTemplate } from '../../data/emailTemplates';
+import { emailTemplates, getTemplate, compileTemplate, generateUnsubscribeLink } from '../../data/emailTemplates';
+import { sendEmail } from '../../lib/ses';
+import { supabase } from '../../lib/supabase';
 
 const EmailCampaign = () => {
   const { prospects } = useProspectionStore();
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [selectedProspects, setSelectedProspects] = useState<string[]>([]);
-  const [previewEmail, setPreviewEmail] = useState<string | null>(null);
+  const [previewEmail, setPreviewEmail] = useState<{ subject: string; body: string } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [sendResults, setSendResults] = useState<{ success: number; failed: number }>({ success: 0, failed: 0 });
 
   const handlePreview = () => {
     const template = getTemplate(selectedTemplate);
@@ -15,89 +19,180 @@ const EmailCampaign = () => {
     const prospect = prospects.find(p => p.id === selectedProspects[0]);
     if (!prospect) return;
 
+    const unsubscribeLink = generateUnsubscribeLink(prospect.id);
     const compiledEmail = compileTemplate(template, {
       contact_name: prospect.contact_name,
-      sender_name: 'Votre Nom' // À remplacer par le nom de l'utilisateur connecté
+      sender_name: 'Black Road Music',
+      company_name: prospect.company_name || '',
+      project_name: 'Votre Projet',
+      unsubscribe_link: unsubscribeLink
     });
 
     setPreviewEmail(compiledEmail);
   };
 
   const handleSend = async () => {
-    // Implémenter l'envoi d'emails ici
-    console.log('Envoi des emails...');
+    const template = getTemplate(selectedTemplate);
+    if (!template) return;
+
+    setSending(true);
+    setSendResults({ success: 0, failed: 0 });
+    
+    const campaignId = `campaign_${Date.now()}`;
+
+    try {
+      for (const prospectId of selectedProspects) {
+        const prospect = prospects.find(p => p.id === prospectId);
+        if (!prospect) continue;
+
+        try {
+          const unsubscribeLink = generateUnsubscribeLink(prospect.id, campaignId);
+          const compiledEmail = compileTemplate(template, {
+            contact_name: prospect.contact_name,
+            sender_name: 'Black Road Music',
+            company_name: prospect.company_name || '',
+            project_name: 'Votre Projet',
+            unsubscribe_link: unsubscribeLink
+          });
+
+          // Envoi de l'email
+          const result = await sendEmail({
+            to: prospect.email,
+            subject: compiledEmail.subject,
+            body: compiledEmail.body,
+            configurationSetName: 'email_tracking'
+          });
+
+          if (result.success) {
+            // Enregistrement du suivi
+            await supabase.from('email_tracking').insert({
+              prospect_id: prospect.id,
+              template_id: template.id,
+              campaign_id: campaignId,
+              email_status: 'sent',
+              sent_at: new Date().toISOString(),
+              subject: compiledEmail.subject,
+              message_id: result.messageId
+            });
+
+            // Mise à jour du prospect
+            await supabase.from('prospects')
+              .update({ 
+                last_email_sent: new Date().toISOString(),
+                status: 'contacted'
+              })
+              .eq('id', prospect.id);
+
+            setSendResults(prev => ({ ...prev, success: prev.success + 1 }));
+          } else {
+            setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
+          }
+        } catch (error) {
+          console.error('Erreur envoi email:', error);
+          setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
+        }
+      }
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
     <div className="space-y-6">
-      <h2 className="text-2xl font-bold">Campagne Email</h2>
+      <h2 className="text-2xl font-bold text-gray-900">Campagne Email</h2>
+      
+      {/* Template Selection */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Sélectionner un template
+        </label>
+        <select 
+          value={selectedTemplate} 
+          onChange={(e) => setSelectedTemplate(e.target.value)}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
+        >
+          <option value="">Choisir un template...</option>
+          {emailTemplates.filter(t => t.isActive).map(template => (
+            <option key={template.id} value={template.id}>
+              {template.name} ({template.category})
+            </option>
+          ))}
+        </select>
+      </div>
 
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Template</label>
-          <select
-            value={selectedTemplate}
-            onChange={(e) => setSelectedTemplate(e.target.value)}
-            className="w-full p-2 rounded bg-gray-800"
-          >
-            <option value="">Sélectionner un template</option>
-            {emailTemplates.map(template => (
-              <option key={template.id} value={template.id}>
-                {template.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium mb-1">Prospects</label>
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {prospects.map(prospect => (
-              <label key={prospect.id} className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  checked={selectedProspects.includes(prospect.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedProspects([...selectedProspects, prospect.id]);
-                    } else {
-                      setSelectedProspects(selectedProspects.filter(id => id !== prospect.id));
-                    }
-                  }}
-                  className="rounded bg-gray-800"
-                />
-                <span>{prospect.company_name} ({prospect.contact_name})</span>
-              </label>
-            ))}
-          </div>
-        </div>
-
-        {previewEmail && (
-          <div className="space-y-2">
-            <h3 className="font-medium">Aperçu</h3>
-            <div className="bg-gray-800 p-4 rounded whitespace-pre-wrap">
-              {previewEmail}
-            </div>
-          </div>
-        )}
-
-        <div className="flex justify-end space-x-2">
-          <button
-            onClick={handlePreview}
-            disabled={!selectedTemplate || selectedProspects.length === 0}
-            className="px-4 py-2 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50"
-          >
-            Aperçu
-          </button>
-          <button
-            onClick={handleSend}
-            disabled={!selectedTemplate || selectedProspects.length === 0}
-            className="px-4 py-2 rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50"
-          >
-            Envoyer
-          </button>
+      {/* Prospect Selection */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Sélectionner les prospects ({selectedProspects.length} sélectionnés)
+        </label>
+        <div className="max-h-60 overflow-y-auto border border-gray-300 rounded-lg">
+          {prospects.filter(p => p.status === 'new' || p.status === 'contacted' || p.status === 'interested' || p.status === 'not_interested').map(prospect => (
+            <label key={prospect.id} className="flex items-center p-3 hover:bg-gray-50 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={selectedProspects.includes(prospect.id)}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setSelectedProspects([...selectedProspects, prospect.id]);
+                  } else {
+                    setSelectedProspects(selectedProspects.filter(id => id !== prospect.id));
+                  }
+                }}
+                className="mr-3"
+              />
+              <div>
+                <div className="font-medium">{prospect.contact_name}</div>
+                <div className="text-sm text-gray-500">{prospect.email}</div>
+                <div className="text-xs text-gray-400">{prospect.company_name}</div>
+              </div>
+            </label>
+          ))}
         </div>
       </div>
+
+      {/* Actions */}
+      <div className="flex space-x-4">
+        <button
+          onClick={handlePreview}
+          disabled={!selectedTemplate || selectedProspects.length === 0}
+          className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          Aperçu
+        </button>
+        <button
+          onClick={handleSend}
+          disabled={!selectedTemplate || selectedProspects.length === 0 || sending}
+          className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {sending ? 'Envoi en cours...' : `Envoyer (${selectedProspects.length})`}
+        </button>
+      </div>
+
+      {/* Send Results */}
+      {(sendResults.success > 0 || sendResults.failed > 0) && (
+        <div className="p-4 bg-gray-50 rounded-lg">
+          <h3 className="font-medium mb-2">Résultats de l'envoi :</h3>
+          <div className="text-sm">
+            <div className="text-green-600">✓ {sendResults.success} emails envoyés avec succès</div>
+            {sendResults.failed > 0 && (
+              <div className="text-red-600">✗ {sendResults.failed} emails en échec</div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Email Preview */}
+      {previewEmail && (
+        <div className="border border-gray-300 rounded-lg p-4">
+          <h3 className="font-medium mb-2">Aperçu de l'email :</h3>
+          <div className="bg-gray-50 p-4 rounded">
+            <div className="mb-2">
+              <strong>Sujet :</strong> {previewEmail.subject}
+            </div>
+            <div className="whitespace-pre-wrap text-sm">{previewEmail.body}</div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
