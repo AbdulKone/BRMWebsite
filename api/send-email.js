@@ -24,14 +24,6 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Ajoutez ces logs de debug
-    console.log('Environment variables check:', {
-      region: process.env.AWS_REGION,
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID ? 'SET' : 'MISSING',
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ? 'SET' : 'MISSING',
-      senderEmail: process.env.SES_SENDER_EMAIL
-    });
-    
     const { to, subject, body, templateId, prospectId, campaignId } = req.body;
 
     // Validation des données
@@ -60,19 +52,11 @@ export default async function handler(req, res) {
           },
         },
       },
-      // Retirez temporairement ConfigurationSetName si vous n'en avez pas
-      // ConfigurationSetName: 'email_tracking',
     };
 
     // Envoi de l'email via SES
     const command = new SendEmailCommand(params);
     const result = await sesClient.send(command);
-
-    console.log('Email envoyé avec succès:', {
-      messageId: result.MessageId,
-      to: to,
-      subject: subject
-    });
 
     // Retourner le succès
     return res.status(200).json({
@@ -84,12 +68,7 @@ export default async function handler(req, res) {
     });
 
   } catch (error) {
-    console.error('Erreur détaillée:', {
-      message: error.message,
-      code: error.Code,
-      statusCode: error.$metadata?.httpStatusCode,
-      requestId: error.$metadata?.requestId
-    });
+    console.error('Erreur envoi email:', error.message);
     
     return res.status(500).json({
       success: false,
