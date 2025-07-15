@@ -31,8 +31,9 @@ const Footer = () => {
               BlackRoadMusic
             </h4>
             <p className="text-gray-400 max-w-md">
-              Label de production musicale et visuelle spécialisé dans les musiques
-              urbaines et l'accompagnement artistique complet.
+              Label de production spécialisé dans l'accompagnement artistique complet et la création 
+              de contenu audiovisuel.
+              
             </p>
           </div>
 
