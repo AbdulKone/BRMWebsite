@@ -11,7 +11,7 @@ interface ProspectsListProps {
 type StatusType = 'all' | 'new' | 'contacted' | 'interested' | 'not_interested' | 'unsubscribed';
 
 const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: ProspectsListProps) => {
-  const { prospects, isLoading, error, deleteProspect } = useProspectionStore();
+  const { prospects, loading, error, deleteProspect } = useProspectionStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusType>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -102,7 +102,7 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
     }
   }, []);
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
@@ -120,82 +120,90 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       {/* En-tête avec recherche et filtres */}
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-        <h2 className="text-2xl font-bold">
-          Liste des Prospects ({filteredProspects.length})
-        </h2>
-        <button
-          onClick={handleAddProspect}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded transition-colors"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Ajouter un prospect</span>
-        </button>
-      </div>
-
-      {/* Barre de recherche et filtres */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-          <input
-            type="text"
-            placeholder="Rechercher par entreprise, contact ou email..."
-            value={searchTerm}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 bg-gray-800 border border-gray-700 rounded focus:border-blue-500 focus:outline-none transition-colors"
-          />
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          <Filter className="w-4 h-4 text-gray-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => handleStatusFilterChange(e.target.value as StatusType)}
-            className="px-3 py-2 bg-gray-800 border border-gray-700 rounded focus:border-blue-500 focus:outline-none transition-colors"
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+          <h2 className="text-xl sm:text-2xl font-bold">
+            Liste des Prospects ({filteredProspects.length})
+          </h2>
+          <button
+            onClick={handleAddProspect}
+            className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded transition-colors"
           >
-            <option value="all">Tous les statuts</option>
-            <option value="new">Nouveau</option>
-            <option value="contacted">Contacté</option>
-            <option value="interested">Intéressé</option>
-            <option value="not_interested">Pas intéressé</option>
-            <option value="unsubscribed">Désabonné</option>
-          </select>
+            <Plus className="w-4 h-4" />
+            <span>Ajouter un prospect</span>
+          </button>
+        </div>
+
+        {/* Barre de recherche et filtres */}
+        <div className="flex flex-col gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="Rechercher par entreprise, contact ou email..."
+              value={searchTerm}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded focus:border-blue-500 focus:outline-none transition-colors text-sm sm:text-base"
+            />
+          </div>
+          
+          <div className="flex items-center space-x-2">
+            <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            <select
+              value={statusFilter}
+              onChange={(e) => handleStatusFilterChange(e.target.value as StatusType)}
+              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded focus:border-blue-500 focus:outline-none transition-colors text-sm"
+            >
+              <option value="all">Tous les statuts</option>
+              <option value="new">Nouveau</option>
+              <option value="contacted">Contacté</option>
+              <option value="interested">Intéressé</option>
+              <option value="not_interested">Pas intéressé</option>
+              <option value="unsubscribed">Désabonné</option>
+            </select>
+          </div>
         </div>
       </div>
 
       {/* Liste des prospects */}
-      <div className="grid gap-4">
+      <div className="grid gap-3 sm:gap-4">
         {paginatedProspects.length === 0 ? (
-          <div className="text-center py-12 text-gray-400">
-            {searchTerm || statusFilter !== 'all' 
-              ? 'Aucun prospect ne correspond aux critères de recherche.'
-              : 'Aucun prospect trouvé. Commencez par en ajouter un !'
-            }
+          <div className="text-center py-8 sm:py-12 text-gray-400">
+            <p className="text-sm sm:text-base">
+              {searchTerm || statusFilter !== 'all' 
+                ? 'Aucun prospect ne correspond aux critères de recherche.'
+                : 'Aucun prospect trouvé. Commencez par en ajouter un !'}
+            </p>
           </div>
         ) : (
           paginatedProspects.map(prospect => (
-            <div key={prospect.id} className="bg-gray-800 p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-xl font-semibold">{prospect.company_name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium text-white ${getStatusColor(prospect.status)}`}>
+            <div key={prospect.id} className="bg-gray-800 p-3 sm:p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                    <h3 className="text-lg sm:text-xl font-semibold truncate">{prospect.company_name}</h3>
+                    <span className={`self-start px-2 py-1 rounded-full text-xs font-medium text-white ${getStatusColor(prospect.status)}`}>
                       {getStatusLabel(prospect.status)}
                     </span>
                   </div>
-                  <p className="text-gray-300 mb-1">{prospect.contact_name}</p>
-                  <p className="text-gray-400 text-sm">{prospect.email}</p>
-                  {prospect.phone && (
-                    <p className="text-gray-400 text-sm">{prospect.phone}</p>
-                  )}
-                  <p className="text-gray-500 text-xs mt-2">
-                    Dernier contact: {new Date(prospect.last_contact).toLocaleDateString('fr-FR')}
-                  </p>
+                  <div className="space-y-1">
+                    <p className="text-gray-300 text-sm sm:text-base">{prospect.contact_name}</p>
+                    <p className="text-gray-400 text-xs sm:text-sm break-all">{prospect.email}</p>
+                    {prospect.phone && (
+                      <p className="text-gray-400 text-xs sm:text-sm">{prospect.phone}</p>
+                    )}
+                    <p className="text-gray-500 text-xs mt-2">
+                      Dernier contact: {prospect.last_contact 
+                        ? new Date(prospect.last_contact).toLocaleDateString('fr-FR')
+                        : 'Jamais contacté'
+                      }
+                    </p>
+                  </div>
                 </div>
                 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center justify-end space-x-1 sm:space-x-2 flex-shrink-0">
                   <button
                     onClick={() => handleViewDetails(prospect.id)}
                     className="p-2 text-blue-400 hover:text-blue-300 hover:bg-gray-700 rounded transition-colors"
@@ -226,8 +234,8 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-gray-400">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <p className="text-xs sm:text-sm text-gray-400 text-center sm:text-left">
             Affichage de {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, filteredProspects.length)} sur {filteredProspects.length} prospects
           </p>
           <div className="flex items-center space-x-2">
@@ -238,7 +246,7 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-3 py-1 bg-gray-700 rounded">
+            <span className="px-3 py-1 bg-gray-700 rounded text-sm">
               {currentPage} / {totalPages}
             </span>
             <button
