@@ -5,9 +5,10 @@ import ProspectForm from './ProspectForm';
 import ProspectDetails from './ProspectDetails';
 import EmailCampaign from './EmailCampaign';
 import EmailStatsDashboard from './EmailStatsDashboard';
-import { Users, Mail, BarChart3, Plus } from 'lucide-react';
+import TemplateManager from './TemplateManager';
+import { Users, Mail, BarChart3, Plus, FileText } from 'lucide-react';
 
-type ActiveTab = 'list' | 'form' | 'details' | 'campaign' | 'stats';
+type ActiveTab = 'list' | 'form' | 'details' | 'campaign' | 'stats' | 'templates';
 
 const ProspectionDashboard = () => {
   const { loadProspects } = useProspectionStore();
@@ -55,19 +56,20 @@ const ProspectionDashboard = () => {
     { id: 'list', label: 'Prospects', icon: Users },
     { id: 'campaign', label: 'Campagnes', icon: Mail },
     { id: 'stats', label: 'Statistiques', icon: BarChart3 },
+    { id: 'templates', label: 'Templates', icon: FileText },
   ];
 
   return (
-    <div className="min-h-screen bg-black text-white"> {/* Changé de bg-gray-900 à bg-black */}
+    <div className="min-h-screen bg-black text-white">
       <div className="container mx-auto px-4 py-8">
         {/* En-tête */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Gestion de la Prospection</h1>
-          <p className="text-gray-400">Gérez vos prospects et campagnes email</p>
+          <p className="text-gray-400">Gérez vos prospects, campagnes email et templates</p>
         </div>
 
         {/* Navigation par onglets */}
-        {(activeTab === 'list' || activeTab === 'campaign' || activeTab === 'stats') && (
+        {(activeTab === 'list' || activeTab === 'campaign' || activeTab === 'stats' || activeTab === 'templates') && (
           <div className="flex space-x-1 mb-6 bg-gray-800 p-1 rounded-lg">
             {tabs.map(tab => {
               const Icon = tab.icon;
@@ -122,6 +124,8 @@ const ProspectionDashboard = () => {
           {activeTab === 'campaign' && <EmailCampaign />}
           
           {activeTab === 'stats' && <EmailStatsDashboard />}
+          
+          {activeTab === 'templates' && <TemplateManager />}
         </div>
       </div>
     </div>

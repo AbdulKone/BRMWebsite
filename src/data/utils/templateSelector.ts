@@ -55,6 +55,7 @@ export const getFollowUpSequence = (
   initialTemplateId: string
 ): EmailTemplate[] => {
   const sequences: Record<string, string[]> = {
+    'visual_intro_advertising': ['advanced_follow_up_sequence_1', 'advanced_follow_up_sequence_2'],
     'music_video_intro': ['personalized_follow_up', 'detailed_video_proposal'],
     'luxury_advertising_intro': ['personalized_follow_up', 'detailed_video_proposal'],
     'sports_advertising_intro': ['personalized_follow_up', 'detailed_video_proposal'],
@@ -63,6 +64,18 @@ export const getFollowUpSequence = (
   
   const sequenceIds = sequences[initialTemplateId] || [];
   return sequenceIds
-    .map(id => templates.find(template => template.id === id && template.isActive))
+    .map(id => templates.find(template => template.id === id && template.is_active)) // Changed from isActive
+    .filter((template): template is EmailTemplate => template !== undefined);
+};
+
+export const getTemplateVariants = (templates: EmailTemplate[], baseTemplateId: string): EmailTemplate[] => {
+  return templates.filter(template => 
+    template.id.startsWith(baseTemplateId) && template.is_active // Changed from isActive
+  );
+};
+
+const getTemplatesByIds = (templates: EmailTemplate[], templateIds: string[]): EmailTemplate[] => {
+  return templateIds
+    .map(id => templates.find(template => template.id === id && template.is_active)) // Changed from isActive
     .filter((template): template is EmailTemplate => template !== undefined);
 };

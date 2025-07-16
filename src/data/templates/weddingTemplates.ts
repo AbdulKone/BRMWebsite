@@ -4,6 +4,7 @@ import { MARKET_SEGMENTS } from '../constants/emailConstants';
 export const weddingTemplates: EmailTemplate[] = [
   {
     id: 'wedding_videography_intro',
+    template_key: 'wedding_videography_intro', // Added missing property
     name: 'Introduction - Vidéographie de Mariage',
     subject: '💕 Immortalisons la magie de votre plus beau jour',
     content: `Bonjour {{bride_name}} et {{groom_name}},
@@ -40,9 +41,10 @@ Avec toute mon affection,
 📞 {{phone}} (disponible 7j/7)`,
     variables: ['bride_name', 'groom_name', 'wedding_date', 'venue', 'guest_count', 'starting_price', 'sender_name', 'wedding_portfolio', 'phone'],
     category: 'introduction',
-    isActive: true,
+    is_active: true,
     priority: 'high',
     segment_targeting: [MARKET_SEGMENTS.WEDDING],
+    ab_test_variant: 'A', // Added missing property
     performance_metrics: {
       open_rate: 0.62,
       click_rate: 0.25,

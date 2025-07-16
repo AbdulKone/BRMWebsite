@@ -4,6 +4,7 @@ import { MARKET_SEGMENTS } from '../constants/emailConstants';
 export const luxuryTemplates: EmailTemplate[] = [
   {
     id: 'luxury_advertising_intro',
+    template_key: 'luxury_advertising_intro', // Added missing property
     name: 'Introduction - Publicité Luxe',
     subject: '✨ L\'excellence visuelle que mérite votre marque de prestige',
     content: `Bonjour {{contact_name}},
@@ -36,9 +37,10 @@ Avec mes salutations distinguées,
 📞 Direct : {{phone}}`,
     variables: ['contact_name', 'brand_name', 'sender_name', 'luxury_portfolio', 'phone'],
     category: 'introduction',
-    isActive: true,
+    is_active: true,
     priority: 'high',
     segment_targeting: [MARKET_SEGMENTS.LUXURY],
+    ab_test_variant: 'A', // Added missing property
     performance_metrics: {
       open_rate: 0.48,
       click_rate: 0.15,

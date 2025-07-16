@@ -1,4 +1,4 @@
-import { EmailTemplate, PerformanceMetrics } from '../types/emailTypes';
+import { EmailTemplate, PerformanceMetrics, TemplateAnalysis } from '../types/emailTypes';
 import { calculatePerformanceScore } from './templateUtils';
 
 /**
@@ -25,14 +25,8 @@ export const updateTemplatePerformance = (
 /**
  * Analyse les performances globales des templates
  */
-export const analyzeTemplatePerformance = (
-  templates: EmailTemplate[]
-): {
-  bestPerforming: EmailTemplate[];
-  worstPerforming: EmailTemplate[];
-  averageMetrics: PerformanceMetrics;
-} => {
-  const activeTemplates = templates.filter(t => t.isActive && t.performance_metrics);
+export const analyzeTemplatePerformance = (templates: EmailTemplate[]): TemplateAnalysis => {
+  const activeTemplates = templates.filter(t => t.is_active && t.performance_metrics); // Changed from isActive
   
   if (activeTemplates.length === 0) {
     return {

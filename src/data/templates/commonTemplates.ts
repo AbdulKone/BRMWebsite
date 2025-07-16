@@ -4,6 +4,7 @@ import { MARKET_SEGMENTS } from '../constants/emailConstants';
 export const commonTemplates: EmailTemplate[] = [
   {
     id: 'detailed_video_proposal',
+    template_key: 'detailed_video_proposal', // Added missing property
     name: 'Proposition Commerciale Vidéo Complète',
     subject: '📋 Votre projet {{project_type}} - Proposition détaillée et timeline',
     content: `Bonjour {{contact_name}},
@@ -72,8 +73,16 @@ Cordialement,
 🌐 {{website}}`,
     variables: ['contact_name', 'project_type', 'objective_1', 'objective_2', 'objective_3', 'phase1_duration', 'phase2_duration', 'phase3_duration', 'total_price', 'contract_date', 'shooting_start', 'delivery_date', 'director_name', 'dop_name', 'editor_name', 'project_manager', 'sender_name', 'phone', 'email', 'website'],
     category: 'proposal',
-    isActive: true,
+    is_active: true, // Fixed: was 'is_Active'
     priority: 'high',
-    segment_targeting: [MARKET_SEGMENTS.MUSIC, MARKET_SEGMENTS.LUXURY, MARKET_SEGMENTS.SPORTS, MARKET_SEGMENTS.WEDDING]
+    segment_targeting: [MARKET_SEGMENTS.MUSIC, MARKET_SEGMENTS.LUXURY, MARKET_SEGMENTS.SPORTS, MARKET_SEGMENTS.WEDDING],
+    ab_test_variant: 'A', // Added missing property
+    performance_metrics: { // Added missing property
+      open_rate: 0.45,
+      click_rate: 0.12,
+      response_rate: 0.08,
+      conversion_rate: 0.20,
+      last_updated: '2024-01-15'
+    }
   }
 ];

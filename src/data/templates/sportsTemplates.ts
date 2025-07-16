@@ -4,6 +4,7 @@ import { MARKET_SEGMENTS } from '../constants/emailConstants';
 export const sportsTemplates: EmailTemplate[] = [
   {
     id: 'sports_advertising_intro',
+    template_key: 'sports_advertising_intro', // Added missing property
     name: 'Introduction - Publicité Sportive',
     subject: '⚡ Capturons l\'énergie et la passion de votre marque sport',
     content: `Salut {{contact_name}} !
@@ -36,9 +37,10 @@ Sportivement,
 📲 Mobile : {{phone}}`,
     variables: ['contact_name', 'brand_name', 'sender_name', 'sports_portfolio', 'phone'],
     category: 'introduction',
-    isActive: true,
+    is_active: true, // Fixed: was 'is_Active'
     priority: 'high',
     segment_targeting: [MARKET_SEGMENTS.SPORTS],
+    ab_test_variant: 'A', // Added missing property
     performance_metrics: {
       open_rate: 0.55,
       click_rate: 0.20,

@@ -1,15 +1,18 @@
 export interface EmailTemplate {
-  id: string;
+  id: string; // UUID from database
+  template_key: string; // For code references like 'visual_intro_advertising'
   name: string;
   subject: string;
   content: string;
   variables: string[];
-  category: 'introduction' | 'follow_up' | 'proposal' | 'nurturing' | 'closing' | 'reactivation';
-  isActive: boolean;
+  category: string;
+  is_active: boolean;
   priority: 'low' | 'medium' | 'high';
-  segment_targeting?: string[];
-  ab_test_variant?: 'A' | 'B' | 'C';
-  performance_metrics?: PerformanceMetrics;
+  segment_targeting: string[];
+  ab_test_variant: 'A' | 'B';
+  performance_metrics: PerformanceMetrics;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface PerformanceMetrics {
@@ -18,6 +21,13 @@ export interface PerformanceMetrics {
   response_rate: number;
   conversion_rate: number;
   last_updated: string;
+}
+
+// Add the missing TemplateAnalysis interface
+export interface TemplateAnalysis {
+  bestPerforming: EmailTemplate[];
+  worstPerforming: EmailTemplate[];
+  averageMetrics: PerformanceMetrics;
 }
 
 export type TemplateCategory = EmailTemplate['category'];

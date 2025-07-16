@@ -1,27 +1,20 @@
-export interface EmailTemplate {
-  id: string;
-  name: string;
-  subject: string;
-  content: string;
-  variables: string[];
-  category: 'introduction' | 'follow_up' | 'proposal' | 'nurturing' | 'closing' | 'reactivation';
-  isActive: boolean;
-  priority: 'low' | 'medium' | 'high';
-  segment_targeting?: string[];
-  ab_test_variant?: 'A' | 'B' | 'C';
-  performance_metrics?: {
-    open_rate: number;
-    click_rate: number;
-    response_rate: number;
-    conversion_rate: number;
-    last_updated: string;
-  };
-}
+// Remove the duplicate interface - it should come from emailTypes.ts
+// export interface EmailTemplate { ... } <- DELETE THIS
+
+// Imports des types
+export * from './types/emailTypes';
+
+// Imports des constantes
+export * from './constants/emailConstants';
+
+// Import the EmailTemplate interface
+import { EmailTemplate } from './types/emailTypes';
 
 // Templates de base (renommé pour éviter la redéclaration)
 export const baseEmailTemplates: EmailTemplate[] = [
   {
     id: 'visual_intro_advertising',
+    template_key: 'visual_intro_advertising', // Added missing property
     name: 'Introduction Spécialisée - Publicité Visuelle',
     subject: '🎬 Transformez vos campagnes avec des visuels qui marquent les esprits',
     content: `Bonjour {{contact_name}},
@@ -48,7 +41,7 @@ Cordialement,
 P.S. : Je peux vous envoyer notre portfolio spécialisé en publicité si cela vous intéresse.`,
     variables: ['contact_name', 'company_name', 'sender_name'],
     category: 'introduction',
-    isActive: true,
+    is_active: true, // Fixed: was 'isActive'
     priority: 'high',
     segment_targeting: ['enterprise', 'creative_agencies'],
     ab_test_variant: 'A',
@@ -62,6 +55,7 @@ P.S. : Je peux vous envoyer notre portfolio spécialisé en publicité si cela v
   },
   {
     id: 'film_intro_specialized',
+    template_key: 'film_intro_specialized', // Added missing property
     name: 'Introduction Spécialisée - Production Cinématographique',
     subject: '🎥 Donnez vie à vos histoires avec une production cinématographique d\'exception',
     content: `Bonjour {{contact_name}},
@@ -92,13 +86,21 @@ Au plaisir d'échanger,
 🎬 Portfolio : [lien vers showreel]`,
     variables: ['contact_name', 'company_name', 'sender_name'],
     category: 'introduction',
-    isActive: true,
+    is_active: true, // Fixed: was 'isActive'
     priority: 'high',
     segment_targeting: ['enterprise', 'creative_agencies'],
-    ab_test_variant: 'B'
+    ab_test_variant: 'B',
+    performance_metrics: { // Added missing property
+      open_rate: 0.42,
+      click_rate: 0.15,
+      response_rate: 0.09,
+      conversion_rate: 0.18,
+      last_updated: '2024-01-16'
+    }
   },
   {
     id: 'detailed_commercial_proposal',
+    template_key: 'detailed_commercial_proposal', // Added missing property
     name: 'Proposition Commerciale Détaillée',
     subject: '📋 Proposition personnalisée pour {{company_name}} - Production visuelle premium',
     content: `Bonjour {{contact_name}},
@@ -155,12 +157,21 @@ Cordialement,
 📧 {{email}}`,
     variables: ['contact_name', 'company_name', 'objective_1', 'objective_2', 'objective_3', 'duration_phase1', 'duration_phase2', 'duration_phase3', 'total_price', 'start_date', 'sender_name', 'phone', 'email'],
     category: 'proposal',
-    isActive: true,
+    is_active: true, // Fixed: was 'isActive'
     priority: 'high',
-    segment_targeting: ['enterprise']
+    segment_targeting: ['enterprise'],
+    ab_test_variant: 'A', // Added missing property
+    performance_metrics: { // Added missing property
+      open_rate: 0.38,
+      click_rate: 0.14,
+      response_rate: 0.11,
+      conversion_rate: 0.22,
+      last_updated: '2024-01-17'
+    }
   },
   {
     id: 'portfolio_presentation_demo',
+    template_key: 'portfolio_presentation_demo', // Added missing property
     name: 'Présentation Portfolio avec Démo',
     subject: '🎨 Découvrez notre savoir-faire en action - Démo personnalisée pour {{company_name}}',
     content: `Bonjour {{contact_name}},
@@ -212,12 +223,21 @@ Bien à vous,
 💼 Portfolio complet : [lien]`,
     variables: ['contact_name', 'company_name', 'industry', 'sender_name'],
     category: 'follow_up',
-    isActive: true,
+    is_active: true, // Fixed: was 'isActive'
     priority: 'high',
-    segment_targeting: ['enterprise', 'creative_agencies']
+    segment_targeting: ['enterprise', 'creative_agencies'],
+    ab_test_variant: 'B', // Added missing property
+    performance_metrics: { // Added missing property
+      open_rate: 0.41,
+      click_rate: 0.16,
+      response_rate: 0.09,
+      conversion_rate: 0.19,
+      last_updated: '2024-01-18'
+    }
   },
   {
     id: 'project_confirmation_planning',
+    template_key: 'project_confirmation_planning', // Added missing property
     name: 'Confirmation Projet avec Planning Détaillé',
     subject: '✅ Confirmation projet {{company_name}} - Planning et prochaines étapes',
     content: `Bonjour {{contact_name}},
@@ -288,11 +308,21 @@ Cordialement,
 🌐 {{website}}`,
     variables: ['contact_name', 'company_name', 'project_name', 'budget', 'start_date', 'delivery_date', 'date1', 'date2', 'date3', 'date4', 'date5', 'project_manager', 'director', 'dop', 'editor', 'emergency_phone', 'time', 'sender_name', 'email', 'phone', 'website'],
     category: 'closing',
-    isActive: true,
-    priority: 'high'
+    is_active: true, // Fixed: was 'isActive'
+    priority: 'high',
+    segment_targeting: ['enterprise'], // Added missing property
+    ab_test_variant: 'A', // Added missing property
+    performance_metrics: { // Added missing property
+      open_rate: 0.52,
+      click_rate: 0.18,
+      response_rate: 0.15,
+      conversion_rate: 0.28,
+      last_updated: '2024-01-19'
+    }
   },
   {
     id: 'advanced_follow_up_sequence_1',
+    template_key: 'advanced_follow_up_sequence_1', // Added missing property
     name: 'Séquence Follow-up Avancée - Email 1',
     subject: '🎬 {{contact_name}}, avez-vous eu l\'occasion de consulter notre proposition ?',
     content: `Bonjour {{contact_name}},
@@ -319,12 +349,21 @@ Bien à vous,
 P.S. : Si le timing n'est pas optimal actuellement, n'hésitez pas à me le faire savoir. Je peux vous recontacter à un moment plus approprié.`,
     variables: ['contact_name', 'company_name', 'sender_name'],
     category: 'follow_up',
-    isActive: true,
+    is_active: true, // Fixed: was 'isActive'
     priority: 'medium',
-    ab_test_variant: 'A'
+    segment_targeting: ['enterprise', 'creative_agencies'], // Added missing property
+    ab_test_variant: 'A',
+    performance_metrics: { // Added missing property
+      open_rate: 0.35,
+      click_rate: 0.10,
+      response_rate: 0.06,
+      conversion_rate: 0.12,
+      last_updated: '2024-01-20'
+    }
   },
   {
     id: 'advanced_follow_up_sequence_2',
+    template_key: 'advanced_follow_up_sequence_2', // Added missing property
     name: 'Séquence Follow-up Avancée - Email 2',
     subject: '📈 Dernières tendances visuelles pour {{industry}} - Insights pour {{company_name}}',
     content: `Bonjour {{contact_name}},
@@ -370,8 +409,17 @@ Cordialement,
 📧 Répondre directement à cet email`,
     variables: ['contact_name', 'company_name', 'industry', 'opportunity_1', 'opportunity_2', 'opportunity_3', 'sender_name'],
     category: 'nurturing',
-    isActive: true,
-    priority: 'medium'
+    is_active: true, // Fixed: was 'isActive'
+    priority: 'medium',
+    segment_targeting: ['enterprise', 'creative_agencies'], // Added missing property
+    ab_test_variant: 'B', // Added missing property
+    performance_metrics: { // Added missing property
+      open_rate: 0.39,
+      click_rate: 0.13,
+      response_rate: 0.08,
+      conversion_rate: 0.16,
+      last_updated: '2024-01-21'
+    }
   }
 ];
 
@@ -406,14 +454,14 @@ export const emailTemplates = [
 
 // Fonctions de convenance qui utilisent la liste consolidée
 export const getTemplate = (id: string) => 
-  emailTemplates.find(template => template.id === id && template.isActive);
+  emailTemplates.find(template => template.id === id && template.is_active); // Fixed: isActive -> is_active
 
 export const getTemplatesByCategory = (category: string) => 
-  emailTemplates.filter(template => template.category === category && template.isActive);
+  emailTemplates.filter(template => template.category === category && template.is_active); // Fixed: isActive -> is_active
 
 export const getTemplatesBySegment = (segment: string) => 
   emailTemplates.filter(template => 
-    template.isActive && 
+    template.is_active && // Fixed: isActive -> is_active
     (template.segment_targeting?.includes(segment) || !template.segment_targeting)
   );
 
@@ -475,7 +523,7 @@ export const validateTemplateVariables = (template: EmailTemplate, variables: Re
 };
 
 export const selectTemplateVariant = (templateId: string): EmailTemplate | undefined => {
-  const variants = emailTemplates.filter(t => t.id.startsWith(templateId) && t.isActive);
+  const variants = emailTemplates.filter(t => t.id.startsWith(templateId) && t.is_active); // Fixed: was 'isActive'
   if (variants.length === 0) return undefined;
   
   // Sélection basée sur les performances ou aléatoire pour A/B testing

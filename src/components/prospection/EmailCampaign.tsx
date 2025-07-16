@@ -171,7 +171,7 @@ const EmailCampaign = () => {
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
         >
           <option value="">Choisir un template...</option>
-          {emailTemplates.filter(t => t.isActive).map(template => (
+          {emailTemplates.filter(t => t.is_active).map(template => (
             <option key={template.id} value={template.id}>
               {template.name} ({template.category})
             </option>

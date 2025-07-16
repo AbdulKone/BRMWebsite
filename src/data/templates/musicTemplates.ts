@@ -4,6 +4,7 @@ import { MARKET_SEGMENTS } from '../constants/emailConstants';
 export const musicTemplates: EmailTemplate[] = [
   {
     id: 'music_video_intro',
+    template_key: 'music_video_intro', // Added missing property
     name: 'Introduction - Clips Musicaux',
     subject: '🎵 Créons ensemble le clip qui propulsera votre carrière',
     content: `Bonjour {{contact_name}},
@@ -36,9 +37,10 @@ Musicalement vôtre,
 📱 WhatsApp : {{phone}}`,
     variables: ['contact_name', 'artist_name', 'label_examples', 'sender_name', 'portfolio_link', 'phone'],
     category: 'introduction',
-    isActive: true,
+    is_active: true,
     priority: 'high',
     segment_targeting: [MARKET_SEGMENTS.MUSIC],
+    ab_test_variant: 'A', // Added missing property
     performance_metrics: {
       open_rate: 0.52,
       click_rate: 0.18,
