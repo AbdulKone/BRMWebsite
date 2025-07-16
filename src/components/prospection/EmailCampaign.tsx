@@ -1,7 +1,52 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useProspectionStore } from '../../stores/prospectionStore';
-import { emailTemplates, getTemplate, compileTemplate, generateUnsubscribeLink } from '../../data/emailTemplates';
 import { supabase } from '../../lib/supabase';
+import { EmailTemplate } from '../../data/types/emailTypes';
+
+// Interface pour les templates de la base de données
+interface DatabaseEmailTemplate {
+  id: string;
+  template_key: string;
+  name: string;
+  subject: string;
+  content: string;
+  variables: string[];
+  category: string;
+  is_active: boolean;
+  priority: string;
+  segment_targeting: string[];
+  ab_test_variant: string;
+  performance_metrics: {
+    open_rate: number;
+    click_rate: number;
+    response_rate: number;
+    conversion_rate: number;
+    last_updated: string;
+  };
+}
+
+// Fonction pour compiler un template avec les variables
+const compileTemplate = (template: DatabaseEmailTemplate, variables: Record<string, string>): { subject: string; content: string } => {
+  let compiledSubject = template.subject;
+  let compiledContent = template.content;
+
+  // Remplacer les variables dans le sujet et le contenu
+  Object.entries(variables).forEach(([key, value]) => {
+    const regex = new RegExp(`{{${key}}}`, 'g');
+    compiledSubject = compiledSubject.replace(regex, value);
+    compiledContent = compiledContent.replace(regex, value);
+  });
+
+  return {
+    subject: compiledSubject,
+    content: compiledContent
+  };
+};
+
+// Fonction pour générer le lien de désinscription
+const generateUnsubscribeLink = (prospectId: string): string => {
+  return `${window.location.origin}/unsubscribe?id=${prospectId}`;
+};
 
 // Fonction pour envoyer via Vercel + SES
 const sendEmailViaVercel = async ({
@@ -71,11 +116,45 @@ const sendEmailViaVercel = async ({
 
 const EmailCampaign = () => {
   const { prospects } = useProspectionStore();
+  const [templates, setTemplates] = useState<DatabaseEmailTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [selectedProspects, setSelectedProspects] = useState<string[]>([]);
   const [previewEmail, setPreviewEmail] = useState<{ subject: string; body: string } | null>(null);
   const [sending, setSending] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [sendResults, setSendResults] = useState<{ success: number; failed: number }>({ success: 0, failed: 0 });
+
+  // Charger les templates depuis la base de données
+  useEffect(() => {
+    const loadTemplates = async () => {
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('email_templates')
+          .select('*')
+          .eq('is_active', true)
+          .order('priority', { ascending: false })
+          .order('name');
+
+        if (error) {
+          console.error('Erreur lors du chargement des templates:', error);
+          return;
+        }
+
+        setTemplates(data || []);
+      } catch (error) {
+        console.error('Erreur lors du chargement des templates:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadTemplates();
+  }, []);
+
+  const getTemplate = (templateKey: string): DatabaseEmailTemplate | undefined => {
+    return templates.find(t => t.template_key === templateKey && t.is_active);
+  };
 
   const handlePreview = () => {
     const template = getTemplate(selectedTemplate);
@@ -135,7 +214,7 @@ const EmailCampaign = () => {
             to: prospect.email,
             subject: compiledEmail.subject,
             body: compiledEmail.content,
-            templateId: template.id,
+            templateId: template.template_key,
             prospectId: prospect.id,
             campaignId
           });
@@ -156,6 +235,17 @@ const EmailCampaign = () => {
     }
   };
 
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <h2 className="text-2xl font-bold text-gray-900">Campagne Email</h2>
+        <div className="flex items-center justify-center p-8">
+          <div className="text-gray-500">Chargement des templates...</div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <h2 className="text-2xl font-bold text-gray-900">Campagne Email</h2>
@@ -163,7 +253,7 @@ const EmailCampaign = () => {
       {/* Template Selection */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">
-          Sélectionner un template
+          Sélectionner un template ({templates.length} disponibles)
         </label>
         <select 
           value={selectedTemplate} 
@@ -171,8 +261,8 @@ const EmailCampaign = () => {
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent"
         >
           <option value="">Choisir un template...</option>
-          {emailTemplates.filter(t => t.is_active).map(template => (
-            <option key={template.id} value={template.id}>
+          {templates.map(template => (
+            <option key={template.template_key} value={template.template_key}>
               {template.name} ({template.category})
             </option>
           ))}

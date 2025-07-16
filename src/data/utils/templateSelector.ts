@@ -9,7 +9,7 @@ export const selectOptimalTemplateVariant = (
   baseTemplateId: string
 ): EmailTemplate | undefined => {
   const variants = templates.filter(template => 
-    template.id.startsWith(baseTemplateId) && template.isActive
+    template.id.startsWith(baseTemplateId) && template.is_active // Fixed: isActive -> is_active
   );
   
   if (variants.length === 0) return undefined;
@@ -48,34 +48,28 @@ export const getRecommendedTemplates = (
 };
 
 /**
- * Récupère la séquence de follow-up pour un template donné
+ * Récupère une séquence de follow-up basée sur un template initial
  */
 export const getFollowUpSequence = (
   templates: EmailTemplate[],
   initialTemplateId: string
 ): EmailTemplate[] => {
-  const sequences: Record<string, string[]> = {
-    'visual_intro_advertising': ['advanced_follow_up_sequence_1', 'advanced_follow_up_sequence_2'],
-    'music_video_intro': ['personalized_follow_up', 'detailed_video_proposal'],
-    'luxury_advertising_intro': ['personalized_follow_up', 'detailed_video_proposal'],
-    'sports_advertising_intro': ['personalized_follow_up', 'detailed_video_proposal'],
-    'wedding_videography_intro': ['personalized_follow_up', 'detailed_video_proposal']
-  };
+  // Logique pour déterminer la séquence de follow-up
+  const sequenceIds = [
+    `${initialTemplateId}_followup_1`,
+    `${initialTemplateId}_followup_2`,
+    `${initialTemplateId}_followup_3`
+  ];
   
-  const sequenceIds = sequences[initialTemplateId] || [];
-  return sequenceIds
-    .map(id => templates.find(template => template.id === id && template.is_active)) // Changed from isActive
-    .filter((template): template is EmailTemplate => template !== undefined);
+  return getTemplatesByIds(templates, sequenceIds);
 };
 
 export const getTemplateVariants = (templates: EmailTemplate[], baseTemplateId: string): EmailTemplate[] => {
   return templates.filter(template => 
-    template.id.startsWith(baseTemplateId) && template.is_active // Changed from isActive
+    template.template_key.startsWith(baseTemplateId) && template.is_active
   );
 };
 
 const getTemplatesByIds = (templates: EmailTemplate[], templateIds: string[]): EmailTemplate[] => {
-  return templateIds
-    .map(id => templates.find(template => template.id === id && template.is_active)) // Changed from isActive
-    .filter((template): template is EmailTemplate => template !== undefined);
+  return templateIds.map(id => templates.find(t => t.template_key === id && t.is_active)).filter(Boolean) as EmailTemplate[];
 };
