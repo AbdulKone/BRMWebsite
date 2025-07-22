@@ -98,16 +98,7 @@ const Footer = () => {
                   Politique de confidentialité
                 </Link>
               </li>
-              {!isAuthenticated && (
-                <li>
-                  <Link
-                    to="/backstage/login"
-                    className="text-gray-500 hover:text-accent-400 transition-colors text-sm"
-                  >
-                    Espace administration
-                  </Link>
-                </li>
-              )}
+              {/* Lien vers l'administration supprimé */}
             </ul>
           </div>
         </div>
