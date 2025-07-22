@@ -28,6 +28,24 @@ export const checkRateLimit = (identifier: string): boolean => {
   return true;
 };
 
+// Enhanced rate limiting function with custom limits
+export const rateLimit = (identifier: string, maxRequests: number = MAX_REQUESTS): boolean => {
+  const now = Date.now();
+  const record = rateLimitMap.get(identifier);
+
+  if (!record || (now - record.timestamp) > RATE_LIMIT_WINDOW) {
+    rateLimitMap.set(identifier, { count: 1, timestamp: now });
+    return true;
+  }
+
+  if (record.count >= maxRequests) {
+    return false;
+  }
+
+  record.count++;
+  return true;
+};
+
 // Image validation
 export const validateImage = (file: File): string | null => {
   // Check file size (5MB max)
@@ -84,3 +102,45 @@ export const checkBookingOverlap = async (
 
   return overlappingBookings.length > 0;
 };
+
+// Add function to check if user is anonymous
+export const isAnonymousUser = async (): Promise<boolean> => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return false;
+  
+  // Check if user has is_anonymous claim in their JWT
+  const token = await supabase.auth.getSession();
+  if (!token.data.session?.access_token) return false;
+  
+  try {
+    const payload = JSON.parse(atob(token.data.session.access_token.split('.')[1]));
+    return payload.is_anonymous === true;
+  } catch {
+    return false;
+  }
+};
+
+// Enhanced rate limiting with anonymous user detection
+export const enhancedRateLimit = async (key: string, limit: number = 10): Promise<boolean> => {
+  const isAnonymous = await isAnonymousUser();
+  
+  // Apply stricter limits for anonymous users
+  const effectiveLimit = isAnonymous ? Math.floor(limit / 2) : limit;
+  
+  return rateLimit(key, effectiveLimit);
+};
+
+// Clean up old rate limit records periodically
+export const cleanupRateLimitMap = (): void => {
+  const now = Date.now();
+  for (const [key, record] of rateLimitMap.entries()) {
+    if ((now - record.timestamp) > RATE_LIMIT_WINDOW) {
+      rateLimitMap.delete(key);
+    }
+  }
+};
+
+// Initialize cleanup interval (run every hour)
+if (typeof window !== 'undefined') {
+  setInterval(cleanupRateLimitMap, RATE_LIMIT_WINDOW);
+}
