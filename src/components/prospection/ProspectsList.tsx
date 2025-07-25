@@ -8,7 +8,19 @@ interface ProspectsListProps {
   onAddProspect?: () => void;
 }
 
-type StatusType = 'all' | 'new' | 'contacted' | 'interested' | 'not_interested' | 'unsubscribed';
+type StatusType = 'all' | 'new' | 'contacted' | 'interested' | 'qualified' | 'proposal_sent' | 'negotiation' | 'closed_won' | 'closed_lost';
+
+// Constantes pour éviter la duplication
+const STATUS_CONFIG = {
+  new: { label: 'Nouveau', color: 'bg-blue-500' },
+  contacted: { label: 'Contacté', color: 'bg-yellow-500' },
+  interested: { label: 'Intéressé', color: 'bg-green-500' },
+  qualified: { label: 'Qualifié', color: 'bg-purple-500' },
+  proposal_sent: { label: 'Proposition envoyée', color: 'bg-orange-500' },
+  negotiation: { label: 'Négociation', color: 'bg-red-500' },
+  closed_won: { label: 'Gagné', color: 'bg-emerald-500' },
+  closed_lost: { label: 'Perdu', color: 'bg-gray-500' }
+} as const;
 
 const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: ProspectsListProps) => {
   const { prospects, loading, error, deleteProspect } = useProspectionStore();
@@ -17,24 +29,11 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Handlers optimisés avec useCallback
-  const handleViewDetails = useCallback((prospectId: string) => {
-    onViewDetails?.(prospectId);
-  }, [onViewDetails]);
-
-  const handleEditProspect = useCallback((prospectId: string) => {
-    onEditProspect?.(prospectId);
-  }, [onEditProspect]);
-
-  const handleAddProspect = useCallback(() => {
-    onAddProspect?.();
-  }, [onAddProspect]);
-
+  // Handler optimisé pour la suppression
   const handleDelete = useCallback(async (prospectId: string, companyName: string) => {
     if (window.confirm(`Êtes-vous sûr de vouloir supprimer ${companyName} ?`)) {
       try {
         await deleteProspect(prospectId);
-        // Ajuster la page si nécessaire
         const newTotalPages = Math.ceil((prospects.length - 1) / itemsPerPage);
         if (currentPage > newTotalPages && newTotalPages > 0) {
           setCurrentPage(newTotalPages);
@@ -50,9 +49,10 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
   const filteredProspects = useMemo(() => {
     return prospects.filter(prospect => {
       const searchLower = searchTerm.toLowerCase();
+      const fullName = `${prospect.first_name || ''} ${prospect.last_name || ''}`.trim();
       const matchesSearch = !searchTerm || (
         prospect.company_name.toLowerCase().includes(searchLower) ||
-        prospect.contact_name.toLowerCase().includes(searchLower) ||
+        fullName.toLowerCase().includes(searchLower) ||
         prospect.email.toLowerCase().includes(searchLower)
       );
       
@@ -80,26 +80,9 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
     setCurrentPage(1);
   }, []);
 
-  const getStatusColor = useCallback((status: string) => {
-    switch (status) {
-      case 'new': return 'bg-blue-500';
-      case 'contacted': return 'bg-yellow-500';
-      case 'interested': return 'bg-green-500';
-      case 'not_interested': return 'bg-red-500';
-      case 'unsubscribed': return 'bg-gray-500';
-      default: return 'bg-gray-500';
-    }
-  }, []);
-
-  const getStatusLabel = useCallback((status: string) => {
-    switch (status) {
-      case 'new': return 'Nouveau';
-      case 'contacted': return 'Contacté';
-      case 'interested': return 'Intéressé';
-      case 'not_interested': return 'Pas intéressé';
-      case 'unsubscribed': return 'Désabonné';
-      default: return status;
-    }
+  // Fonctions utilitaires simplifiées
+  const getStatusConfig = useCallback((status: string) => {
+    return STATUS_CONFIG[status as keyof typeof STATUS_CONFIG] || { label: status, color: 'bg-gray-500' };
   }, []);
 
   if (loading) {
@@ -120,49 +103,57 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
   }
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      {/* En-tête avec recherche et filtres */}
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
-          <h2 className="text-xl sm:text-2xl font-bold">
-            Liste des Prospects ({filteredProspects.length})
-          </h2>
-          <button
-            onClick={handleAddProspect}
-            className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Ajouter un prospect</span>
-          </button>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-2">Gestion des Prospects</h2>
+          <p className="text-gray-400">Gérez et suivez vos prospects efficacement</p>
         </div>
+        
+        <button
+          onClick={onAddProspect}
+          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+        >
+          <Plus className="w-5 h-5" />
+          <span>Nouveau Prospect</span>
+        </button>
+      </div>
 
-        {/* Barre de recherche et filtres */}
-        <div className="flex flex-col gap-3">
+      {/* Filtres */}
+      <div className="bg-gray-800/50 border border-gray-700/50 rounded-xl p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Recherche */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Rechercher par entreprise, contact ou email..."
+              placeholder="Rechercher par nom, email ou entreprise..."
               value={searchTerm}
               onChange={(e) => handleSearchChange(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 bg-gray-800 border border-gray-700 rounded focus:border-blue-500 focus:outline-none transition-colors text-sm sm:text-base"
+              className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
             />
           </div>
-          
-          <div className="flex items-center space-x-2">
-            <Filter className="w-4 h-4 text-gray-400 flex-shrink-0" />
+
+          {/* Filtre par statut */}
+          <div className="relative">
+            <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <select
               value={statusFilter}
               onChange={(e) => handleStatusFilterChange(e.target.value as StatusType)}
-              className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded focus:border-blue-500 focus:outline-none transition-colors text-sm"
+              className="w-full pl-10 pr-4 py-3 bg-gray-700/50 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none transition-all duration-200"
             >
               <option value="all">Tous les statuts</option>
-              <option value="new">Nouveau</option>
-              <option value="contacted">Contacté</option>
-              <option value="interested">Intéressé</option>
-              <option value="not_interested">Pas intéressé</option>
-              <option value="unsubscribed">Désabonné</option>
+              {Object.entries(STATUS_CONFIG).map(([key, config]) => (
+                <option key={key} value={key}>{config.label}</option>
+              ))}
             </select>
+          </div>
+
+          {/* Statistiques */}
+          <div className="flex items-center justify-center space-x-4 text-sm">
+            <span className="text-gray-400">Total: <span className="text-white font-semibold">{filteredProspects.length}</span></span>
+            <span className="text-gray-400">Page: <span className="text-white font-semibold">{currentPage}/{totalPages}</span></span>
           </div>
         </div>
       </div>
@@ -178,81 +169,85 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
             </p>
           </div>
         ) : (
-          paginatedProspects.map(prospect => (
-            <div key={prospect.id} className="bg-gray-800 p-3 sm:p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                    <h3 className="text-lg sm:text-xl font-semibold truncate">{prospect.company_name}</h3>
-                    <span className={`self-start px-2 py-1 rounded-full text-xs font-medium text-white ${getStatusColor(prospect.status)}`}>
-                      {getStatusLabel(prospect.status)}
-                    </span>
+          paginatedProspects.map(prospect => {
+            const fullName = `${prospect.first_name || ''} ${prospect.last_name || ''}`.trim();
+            const statusConfig = getStatusConfig(prospect.status);
+            
+            return (
+              <div key={prospect.id} className="bg-gray-800 p-3 sm:p-4 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                      <h3 className="text-lg sm:text-xl font-semibold truncate">{prospect.company_name}</h3>
+                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium text-white ${statusConfig.color}`}>
+                        {statusConfig.label}
+                      </span>
+                    </div>
+                    <div className="space-y-1">
+                      {fullName && (
+                        <p className="text-gray-300 text-sm sm:text-base">{fullName}</p>
+                      )}
+                      <p className="text-gray-400 text-sm">{prospect.email}</p>
+                      {prospect.position && (
+                        <p className="text-gray-500 text-sm">{prospect.position}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-gray-300 text-sm sm:text-base">{prospect.contact_name}</p>
-                    <p className="text-gray-400 text-xs sm:text-sm break-all">{prospect.email}</p>
-                    {prospect.phone && (
-                      <p className="text-gray-400 text-xs sm:text-sm">{prospect.phone}</p>
-                    )}
-                    <p className="text-gray-500 text-xs mt-2">
-                      Dernier contact: {prospect.last_contact 
-                        ? new Date(prospect.last_contact).toLocaleDateString('fr-FR')
-                        : 'Jamais contacté'
-                      }
-                    </p>
+                  
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => onViewDetails?.(prospect.id)}
+                      className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 rounded-lg transition-colors"
+                      title="Voir les détails"
+                    >
+                      <Eye className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => onEditProspect?.(prospect.id)}
+                      className="p-2 text-green-400 hover:text-green-300 hover:bg-green-900/20 rounded-lg transition-colors"
+                      title="Modifier"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(prospect.id, prospect.company_name)}
+                      className="p-2 text-red-400 hover:text-red-300 hover:bg-red-900/20 rounded-lg transition-colors"
+                      title="Supprimer"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                </div>
-                
-                <div className="flex items-center justify-end space-x-1 sm:space-x-2 flex-shrink-0">
-                  <button
-                    onClick={() => handleViewDetails(prospect.id)}
-                    className="p-2 text-blue-400 hover:text-blue-300 hover:bg-gray-700 rounded transition-colors"
-                    title="Voir les détails"
-                  >
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleEditProspect(prospect.id)}
-                    className="p-2 text-yellow-400 hover:text-yellow-300 hover:bg-gray-700 rounded transition-colors"
-                    title="Modifier"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(prospect.id, prospect.company_name)}
-                    className="p-2 text-red-400 hover:text-red-300 hover:bg-gray-700 rounded transition-colors"
-                    title="Supprimer"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
                 </div>
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs sm:text-sm text-gray-400 text-center sm:text-left">
+        <div className="flex items-center justify-between">
+          <div className="text-sm text-gray-400">
             Affichage de {((currentPage - 1) * itemsPerPage) + 1} à {Math.min(currentPage * itemsPerPage, filteredProspects.length)} sur {filteredProspects.length} prospects
-          </p>
+          </div>
+          
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
               disabled={currentPage === 1}
-              className="p-2 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg border border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-3 py-1 bg-gray-700 rounded text-sm">
-              {currentPage} / {totalPages}
+            
+            <span className="px-3 py-1 text-sm text-gray-300">
+              Page {currentPage} sur {totalPages}
             </span>
+            
             <button
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+              onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
               disabled={currentPage === totalPages}
-              className="p-2 rounded bg-gray-700 hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="p-2 rounded-lg border border-gray-600 text-gray-400 hover:text-white hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <ChevronRight className="w-4 h-4" />
             </button>

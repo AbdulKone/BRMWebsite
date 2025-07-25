@@ -16,7 +16,8 @@ export interface ProspectSegment {
   conversion_rate: number;
 }
 
-export interface LeadScore {
+// Interface pour le score détaillé (calculs internes)
+export interface DetailedLeadScore {
   total: number;
   factors: {
     engagement: number;
@@ -52,37 +53,36 @@ export interface EnrichedData {
   };
 }
 
+// Interface Prospect alignée avec la base de données
 export interface Prospect {
   id: string;
   company_name: string;
-  contact_name: string;
+  first_name?: string;
+  last_name?: string;
   email: string;
   phone?: string;
+  position?: string;
+  website?: string;
+  linkedin_url?: string;
   notes?: string;
-  status: 'new' | 'contacted' | 'interested' | 'proposal_sent' | 'negotiating' | 'won' | 'lost' | 'nurturing';
-  last_contact?: string;
+  status: 'new' | 'contacted' | 'interested' | 'qualified' | 'proposal_sent' | 'negotiation' | 'closed_won' | 'closed_lost';
   created_at: string;
   updated_at: string;
-  
-  // Nouvelles propriétés avancées
-  segment?: string;
-  lead_score?: LeadScore;
-  enriched_data?: EnrichedData;
-  next_follow_up?: string;
-  email_sequence_step?: number;
-  conversion_probability?: number;
-  source?: 'website' | 'referral' | 'cold_outreach' | 'social_media' | 'event' | 'partnership';
-  tags?: string[];
-  priority?: 'low' | 'medium' | 'high' | 'urgent';
+  last_contact_date?: string;
   last_email_sent?: string;
-  email_opens?: number;
-  email_clicks?: number;
-  response_rate?: number;
+  engagement_score?: number;
+  tags?: string[];
+  source?: string;
+  segment_targeting?: string[];
+  next_follow_up?: string;
+  lead_score?: number;
+  conversion_probability?: number;
+  enriched_data?: EnrichedData;
 }
 
-export interface EnrichedProspect extends Prospect {
-  enriched_data: EnrichedData;
-  lead_score: LeadScore;
+// Interface pour les prospects avec score détaillé
+export interface ProspectWithDetailedScore extends Prospect {
+  detailed_lead_score: DetailedLeadScore;
 }
 
 interface ProspectionState {
@@ -100,14 +100,13 @@ interface ProspectionState {
 }
 
 interface ProspectionActions {
-  // Actions existantes
+  // Actions CRUD de base
   loadProspects: () => Promise<void>;
-  addProspect: (prospect: Omit<Prospect, 'id' | 'created_at' | 'updated_at'>) => Promise<void>;
-  updateProspect: (id: string, updates: Partial<Prospect>) => Promise<void>;
+  saveProspect: (prospect: Partial<Prospect>) => Promise<void>;
   deleteProspect: (id: string) => Promise<void>;
   
-  // Nouvelles actions avancées
-  calculateLeadScore: (prospectId: string) => Promise<LeadScore>;
+  // Actions avancées
+  calculateDetailedLeadScore: (prospectId: string) => Promise<DetailedLeadScore>;
   updateProspectSegment: (prospectId: string, segmentId: string) => Promise<void>;
   scheduleFollowUp: (prospectId: string, date: string, type: string) => Promise<void>;
   getProspectsBySegment: (segmentId: string) => Prospect[];
@@ -119,42 +118,52 @@ interface ProspectionActions {
   trackEmailEngagement: (prospectId: string, action: 'open' | 'click' | 'reply') => Promise<void>;
 }
 
+// Constantes pour les segments par défaut
+const DEFAULT_SEGMENTS: ProspectSegment[] = [
+  {
+    id: 'enterprise',
+    name: 'Grandes Entreprises',
+    criteria: {
+      company_size: 'large',
+      budget_range: 'high',
+      project_type: ['commercial', 'corporate']
+    },
+    email_frequency: 7,
+    conversion_rate: 0.15
+  },
+  {
+    id: 'startups',
+    name: 'Startups & PME',
+    criteria: {
+      company_size: 'small',
+      budget_range: 'medium',
+      urgency_level: 'high'
+    },
+    email_frequency: 3,
+    conversion_rate: 0.25
+  },
+  {
+    id: 'creative_agencies',
+    name: 'Agences Créatives',
+    criteria: {
+      industry: ['advertising', 'marketing', 'design'],
+      project_type: ['creative', 'artistic']
+    },
+    email_frequency: 5,
+    conversion_rate: 0.30
+  }
+];
+
+// Constantes pour le scoring
+const ENGAGEMENT_BOOST = {
+  open: 1,
+  click: 3,
+  reply: 5
+} as const;
+
 export const useProspectionStore = create<ProspectionState & ProspectionActions>((set, get) => ({
   prospects: [],
-  segments: [
-    {
-      id: 'enterprise',
-      name: 'Grandes Entreprises',
-      criteria: {
-        company_size: 'large',
-        budget_range: 'high',
-        project_type: ['commercial', 'corporate']
-      },
-      email_frequency: 7,
-      conversion_rate: 0.15
-    },
-    {
-      id: 'startups',
-      name: 'Startups & PME',
-      criteria: {
-        company_size: 'small',
-        budget_range: 'medium',
-        urgency_level: 'high'
-      },
-      email_frequency: 3,
-      conversion_rate: 0.25
-    },
-    {
-      id: 'creative_agencies',
-      name: 'Agences Créatives',
-      criteria: {
-        industry: ['advertising', 'marketing', 'design'],
-        project_type: ['creative', 'artistic']
-      },
-      email_frequency: 5,
-      conversion_rate: 0.30
-    }
-  ],
+  segments: DEFAULT_SEGMENTS,
   metrics: {
     total_prospects: 0,
     conversion_rate: 0,
@@ -180,51 +189,31 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
     }
   },
 
-  addProspect: async (prospect) => {
+  // Fonction unifiée pour créer et mettre à jour
+  saveProspect: async (prospect: Partial<Prospect>) => {
     try {
-      const { data, error } = await supabase
-        .from('prospects')
-        .insert([{
-          ...prospect,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
+      const now = new Date().toISOString();
+      const prospectData = prospect.id 
+        ? { ...prospect, updated_at: now }
+        : { ...prospect, created_at: now, updated_at: now };
 
+      const { data, error } = prospect.id 
+        ? await supabase.from('prospects').update(prospectData).eq('id', prospect.id).select().single()
+        : await supabase.from('prospects').insert([prospectData]).select().single();
+      
       if (error) throw error;
       
       set(state => ({
-        prospects: [data, ...state.prospects]
+        prospects: prospect.id 
+          ? state.prospects.map(p => p.id === prospect.id ? data : p)
+          : [data, ...state.prospects]
       }));
     } catch (error) {
       set({ error: (error as Error).message });
     }
   },
 
-  updateProspect: async (id, updates) => {
-    try {
-      const { data, error } = await supabase
-        .from('prospects')
-        .update({
-          ...updates,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      
-      set(state => ({
-        prospects: state.prospects.map(p => p.id === id ? data : p)
-      }));
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
-  },
-
-  deleteProspect: async (id) => {
+  deleteProspect: async (id: string) => {
     try {
       const { error } = await supabase
         .from('prospects')
@@ -241,72 +230,72 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
     }
   },
 
-  // Nouvelles actions avancées
-  calculateLeadScore: async (prospectId: string): Promise<LeadScore> => {
+  calculateDetailedLeadScore: async (prospectId: string): Promise<DetailedLeadScore> => {
     const prospect = get().prospects.find(p => p.id === prospectId);
     if (!prospect) throw new Error('Prospect non trouvé');
 
-    // Algorithme de scoring basé sur plusieurs facteurs
     const factors = {
-      engagement: (prospect.email_opens || 0) * 10 + (prospect.email_clicks || 0) * 20,
+      engagement: (prospect.engagement_score || 0) * 2,
       company_fit: prospect.enriched_data?.company_info?.size === 'large' ? 30 : 15,
-      budget_potential: prospect.enriched_data?.project_history?.avg_budget || 0 > 10000 ? 25 : 10,
-      urgency: prospect.priority === 'urgent' ? 20 : prospect.priority === 'high' ? 15 : 5,
-      response_history: (prospect.response_rate || 0) * 100
+      budget_potential: (prospect.enriched_data?.project_history?.avg_budget || 0) > 10000 ? 25 : 10,
+      urgency: 15,
+      response_history: (prospect.engagement_score || 0) * 0.5
     };
 
     const total = Object.values(factors).reduce((sum, score) => sum + score, 0);
     
-    const leadScore: LeadScore = {
+    const detailedScore: DetailedLeadScore = {
       total,
       factors,
       last_calculated: new Date().toISOString()
     };
 
-    // Mettre à jour le prospect avec le nouveau score
-    await get().updateProspect(prospectId, { lead_score: leadScore });
+    await get().saveProspect({ id: prospectId, lead_score: total });
     
-    return leadScore;
+    return detailedScore;
   },
 
   updateProspectSegment: async (prospectId: string, segmentId: string) => {
-    await get().updateProspect(prospectId, { segment: segmentId });
+    await get().saveProspect({ id: prospectId, segment_targeting: [segmentId] });
   },
 
   scheduleFollowUp: async (prospectId: string, date: string, type: string) => {
-    await get().updateProspect(prospectId, { 
+    const prospect = get().prospects.find(p => p.id === prospectId);
+    await get().saveProspect({ 
+      id: prospectId,
       next_follow_up: date,
-      notes: `${get().prospects.find(p => p.id === prospectId)?.notes || ''} [Follow-up ${type} prévu le ${date}]`
+      notes: `${prospect?.notes || ''} [Follow-up ${type} prévu le ${date}]`
     });
   },
 
   getProspectsBySegment: (segmentId: string) => {
-    return get().prospects.filter(p => p.segment === segmentId);
+    return get().prospects.filter(p => 
+      p.segment_targeting?.includes(segmentId)
+    );
   },
 
   getHighValueProspects: (threshold = 70) => {
-    return get().prospects.filter(p => (p.lead_score?.total || 0) >= threshold);
+    return get().prospects.filter(p => (p.lead_score || 0) >= threshold);
   },
 
   loadMetrics: async () => {
     try {
       const prospects = get().prospects;
       const totalProspects = prospects.length;
-      const wonProspects = prospects.filter(p => p.status === 'won').length;
+      const wonProspects = prospects.filter(p => p.status === 'closed_won').length;
       const conversionRate = totalProspects > 0 ? wonProspects / totalProspects : 0;
       
-      // Calcul de la croissance mensuelle
       const lastMonth = new Date();
       lastMonth.setMonth(lastMonth.getMonth() - 1);
       const recentProspects = prospects.filter(p => new Date(p.created_at) > lastMonth).length;
-      const monthlyGrowth = recentProspects / totalProspects;
+      const monthlyGrowth = totalProspects > 0 ? recentProspects / totalProspects : 0;
 
       set({
         metrics: {
           total_prospects: totalProspects,
           conversion_rate: conversionRate,
-          avg_response_time: 24, // À calculer avec les données réelles
-          pipeline_value: prospects.length * 5000, // Estimation
+          avg_response_time: 24,
+          pipeline_value: prospects.length * 5000,
           monthly_growth: monthlyGrowth
         }
       });
@@ -316,8 +305,6 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
   },
 
   enrichProspectData: async (prospectId: string): Promise<EnrichedData> => {
-    // Simulation d'enrichissement de données
-    // En production, ceci ferait appel à des APIs externes
     const enrichedData: EnrichedData = {
       company_info: {
         size: 'medium',
@@ -331,7 +318,7 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
       }
     };
 
-    await get().updateProspect(prospectId, { enriched_data: enrichedData });
+    await get().saveProspect({ id: prospectId, enriched_data: enrichedData });
     return enrichedData;
   },
 
@@ -355,31 +342,26 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
   },
 
   getOptimalContactTime: async (prospectId: string): Promise<string> => {
-    // Analyse des données d'engagement pour déterminer le meilleur moment
-    // En production, ceci analyserait l'historique des ouvertures d'emails
     const prospect = get().prospects.find(p => p.id === prospectId);
     
-    // Logique simplifiée basée sur le segment
-    if (prospect?.segment === 'enterprise') {
-      return '09:00'; // Entreprises : matin
-    } else if (prospect?.segment === 'startups') {
-      return '14:00'; // Startups : après-midi
+    if (prospect?.segment_targeting?.includes('enterprise')) {
+      return '09:00';
+    } else if (prospect?.segment_targeting?.includes('startups')) {
+      return '14:00';
     }
-    return '10:00'; // Par défaut
+    return '10:00';
   },
 
   trackEmailEngagement: async (prospectId: string, action: 'open' | 'click' | 'reply') => {
     const prospect = get().prospects.find(p => p.id === prospectId);
     if (!prospect) return;
 
-    const updates: Partial<Prospect> = {};
-    
-    if (action === 'open') {
-      updates.email_opens = (prospect.email_opens || 0) + 1;
-    } else if (action === 'click') {
-      updates.email_clicks = (prospect.email_clicks || 0) + 1;
-    }
+    const engagementBoost = ENGAGEMENT_BOOST[action];
+    const newEngagementScore = (prospect.engagement_score || 0) + engagementBoost;
 
-    await get().updateProspect(prospectId, updates);
+    await get().saveProspect({ 
+      id: prospectId, 
+      engagement_score: newEngagementScore 
+    });
   }
 }));

@@ -3,30 +3,14 @@ import { useProspectionStore } from '../../stores/prospectionStore';
 import { supabase } from '../../lib/supabase';
 import { EmailTemplate } from '../../data/types/emailTypes';
 
-// Interface pour les templates de la base de données
-interface DatabaseEmailTemplate {
-  id: string;
-  template_key: string;
-  name: string;
-  subject: string;
-  content: string;
-  variables: string[];
-  category: string;
-  is_active: boolean;
-  priority: string;
-  segment_targeting: string[];
-  ab_test_variant: string;
-  performance_metrics: {
-    open_rate: number;
-    click_rate: number;
-    response_rate: number;
-    conversion_rate: number;
-    last_updated: string;
-  };
-}
+// Fonction pour obtenir le nom de contact
+const getContactName = (prospect: any) => {
+  const fullName = `${prospect.first_name || ''} ${prospect.last_name || ''}`.trim();
+  return fullName || prospect.company_name;
+};
 
 // Fonction pour compiler un template avec les variables
-const compileTemplate = (template: DatabaseEmailTemplate, variables: Record<string, string>): { subject: string; content: string } => {
+const compileTemplate = (template: EmailTemplate, variables: Record<string, string>): { subject: string; content: string } => {
   let compiledSubject = template.subject;
   let compiledContent = template.content;
 
@@ -116,7 +100,7 @@ const sendEmailViaVercel = async ({
 
 const EmailCampaign = () => {
   const { prospects } = useProspectionStore();
-  const [templates, setTemplates] = useState<DatabaseEmailTemplate[]>([]);
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState('');
   const [selectedProspects, setSelectedProspects] = useState<string[]>([]);
   const [previewEmail, setPreviewEmail] = useState<{ subject: string; body: string } | null>(null);
@@ -152,7 +136,7 @@ const EmailCampaign = () => {
     loadTemplates();
   }, []);
 
-  const getTemplate = (templateKey: string): DatabaseEmailTemplate | undefined => {
+  const getTemplate = (templateKey: string): EmailTemplate | undefined => {
     return templates.find(t => t.template_key === templateKey && t.is_active);
   };
 
@@ -165,7 +149,7 @@ const EmailCampaign = () => {
 
     const unsubscribeLink = generateUnsubscribeLink(prospect.id);
     const compiledEmail = compileTemplate(template, {
-      contact_name: prospect.contact_name,
+      contact_name: getContactName(prospect),
       sender_name: 'Black Road Music',
       company_name: prospect.company_name || '',
       project_name: 'Votre Projet',
@@ -195,14 +179,14 @@ const EmailCampaign = () => {
         try {
           // Validation de l'email
           if (!prospect.email || !prospect.email.includes('@')) {
-            console.error('Email invalide pour:', prospect.contact_name);
+            console.error('Email invalide pour:', getContactName(prospect));
             setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
             continue;
           }
 
           const unsubscribeLink = generateUnsubscribeLink(prospect.id);
           const compiledEmail = compileTemplate(template, {
-            contact_name: prospect.contact_name,
+            contact_name: getContactName(prospect),
             sender_name: 'Black Road Music',
             company_name: prospect.company_name || '',
             project_name: 'Votre Projet',
@@ -222,11 +206,11 @@ const EmailCampaign = () => {
           if (result.success) {
             setSendResults(prev => ({ ...prev, success: prev.success + 1 }));
           } else {
-            console.error('Échec envoi email pour:', prospect.contact_name, result.error);
+            console.error('Échec envoi email pour:', getContactName(prospect), result.error);
             setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
           }
         } catch (error) {
-          console.error('Erreur envoi email pour:', prospect.contact_name, error);
+          console.error('Erreur envoi email pour:', getContactName(prospect), error);
           setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
         }
       }
@@ -290,7 +274,7 @@ const EmailCampaign = () => {
                 className="mr-3"
               />
               <div>
-                <div className="font-medium">{prospect.contact_name}</div>
+                <div className="font-medium">{getContactName(prospect)}</div>
                 <div className="text-sm text-gray-500">{prospect.email}</div>
                 <div className="text-xs text-gray-400">{prospect.company_name}</div>
               </div>

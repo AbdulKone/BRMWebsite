@@ -8,43 +8,33 @@ export const getTemplateById = (templates: EmailTemplate[], id: string): EmailTe
   return templates.find(template => template.id === id && template.is_active);
 };
 
-export const getTemplatesByCategory = (
+/**
+ * Filtre les templates selon plusieurs critères
+ */
+export const getTemplatesByFilter = (
   templates: EmailTemplate[],
-  category: string
+  filter: { 
+    category?: string; 
+    priority?: TemplatePriority; 
+    segment?: string;
+    withMetrics?: boolean;
+  } = {}
 ): EmailTemplate[] => {
-  return templates.filter(
-    template => template.category === category && template.is_active
-  );
-};
-
-export const getTemplatesByPriority = (
-  templates: EmailTemplate[],
-  priority: TemplatePriority
-): EmailTemplate[] => {
-  return templates.filter(
-    template => template.priority === priority && template.is_active
-  );
-};
-
-export const getActiveTemplates = (templates: EmailTemplate[]): EmailTemplate[] => {
-  return templates.filter(
-    template => template.is_active && // Changed from isActive
-    template.performance_metrics &&
-    template.performance_metrics.open_rate > 0
-  );
+  return templates.filter(template => {
+    if (!template.is_active) return false;
+    if (filter.category && template.category !== filter.category) return false;
+    if (filter.priority && template.priority !== filter.priority) return false;
+    if (filter.segment && !template.segment_targeting?.includes(filter.segment)) return false;
+    if (filter.withMetrics && (!template.performance_metrics || template.performance_metrics.open_rate <= 0)) return false;
+    return true;
+  });
 };
 
 /**
- * Récupère les templates par segment de marché
+ * Récupère tous les templates actifs avec métriques
  */
-export const getTemplatesBySegment = (
-  templates: EmailTemplate[], 
-  segment: string
-): EmailTemplate[] => {
-  return templates.filter(template => 
-    template.is_active && 
-    (template.segment_targeting?.includes(segment) || !template.segment_targeting)
-  );
+export const getActiveTemplates = (templates: EmailTemplate[]): EmailTemplate[] => {
+  return getTemplatesByFilter(templates, { withMetrics: true });
 };
 
 /**
@@ -62,18 +52,42 @@ export const calculatePerformanceScore = (metrics?: PerformanceMetrics): number 
 };
 
 /**
- * Trouve le template le plus performant d'une catégorie
+ * Trouve le template le plus performant selon les critères donnés
  */
 export const getBestPerformingTemplate = (
   templates: EmailTemplate[], 
-  category: EmailTemplate['category']
+  filter: { category?: string; priority?: TemplatePriority; segment?: string } = {}
 ): EmailTemplate | undefined => {
-  const categoryTemplates = getTemplatesByCategory(templates, category);
-  if (categoryTemplates.length === 0) return undefined;
+  const filteredTemplates = getTemplatesByFilter(templates, { ...filter, withMetrics: true });
+  if (filteredTemplates.length === 0) return undefined;
   
-  return categoryTemplates.reduce((best, current) => {
+  return filteredTemplates.reduce((best, current) => {
     const bestScore = calculatePerformanceScore(best.performance_metrics);
     const currentScore = calculatePerformanceScore(current.performance_metrics);
     return currentScore > bestScore ? current : best;
   });
+};
+
+/**
+ * Trie les templates par score de performance (décroissant)
+ */
+export const sortTemplatesByPerformance = (templates: EmailTemplate[]): EmailTemplate[] => {
+  return [...templates].sort((a, b) => {
+    const scoreA = calculatePerformanceScore(a.performance_metrics);
+    const scoreB = calculatePerformanceScore(b.performance_metrics);
+    return scoreB - scoreA;
+  });
+};
+
+/**
+ * Récupère les N meilleurs templates d'une catégorie
+ */
+export const getTopTemplates = (
+  templates: EmailTemplate[],
+  count: number = 5,
+  filter: { category?: string; priority?: TemplatePriority; segment?: string } = {}
+): EmailTemplate[] => {
+  const filteredTemplates = getTemplatesByFilter(templates, { ...filter, withMetrics: true });
+  const sortedTemplates = sortTemplatesByPerformance(filteredTemplates);
+  return sortedTemplates.slice(0, count);
 };

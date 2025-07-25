@@ -11,24 +11,7 @@ interface RateLimitRecord {
 
 const rateLimitMap = new Map<string, RateLimitRecord>();
 
-export const checkRateLimit = (identifier: string): boolean => {
-  const now = Date.now();
-  const record = rateLimitMap.get(identifier);
-
-  if (!record || (now - record.timestamp) > RATE_LIMIT_WINDOW) {
-    rateLimitMap.set(identifier, { count: 1, timestamp: now });
-    return true;
-  }
-
-  if (record.count >= MAX_REQUESTS) {
-    return false;
-  }
-
-  record.count++;
-  return true;
-};
-
-// Enhanced rate limiting function with custom limits
+// Supprimer checkRateLimit et garder seulement rateLimit
 export const rateLimit = (identifier: string, maxRequests: number = MAX_REQUESTS): boolean => {
   const now = Date.now();
   const record = rateLimitMap.get(identifier);
