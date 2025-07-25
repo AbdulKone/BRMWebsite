@@ -246,7 +246,8 @@ export const useContentStore = create<ContentStore>((set, get) => ({
         .insert([{
           title: service.title,
           description: service.description,
-          icon: service.icon
+          icon: service.icon,
+          price: service.price // Ajout du champ price
         }])
         .select()
         .single();
@@ -279,7 +280,8 @@ export const useContentStore = create<ContentStore>((set, get) => ({
         .update({
           title: service.title,
           description: service.description,
-          icon: service.icon
+          icon: service.icon,
+          price: service.price // Ajout du champ price
         })
         .eq('id', id);
 

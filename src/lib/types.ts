@@ -30,6 +30,7 @@ export interface Service {
   title: string;
   description: string;
   icon: string;
+  price: string; // Ajout du champ price
   features: string[];
   created_at: string;
 }
@@ -45,6 +46,7 @@ export interface StudioBooking {
   id: string;
   user_id: string;
   client_name: string;
+  client_email?: string; // Ajout du champ client_email
   date: string;
   start_time: string;
   end_time: string;
