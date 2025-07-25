@@ -5,7 +5,7 @@ import { format, parse, isAfter, isBefore, addDays } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { supabase } from '../../lib/supabase';
-import { checkRateLimit, checkBookingOverlap } from '../../lib/security';
+import { rateLimit, checkBookingOverlap } from '../../lib/security';
 
 interface BookingForm {
   client_name: string;
@@ -46,7 +46,7 @@ const BookingPage = () => {
     }
 
     // Check rate limit
-    if (!checkRateLimit(data.client_name)) {
+    if (!rateLimit(data.client_name)) {
       setError("Vous avez atteint la limite de réservations. Veuillez réessayer plus tard.");
       return;
     }
