@@ -66,24 +66,42 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   },
 
   fetchMessages: async () => {
+    // Vérifier l'utilisateur connecté
+    const { data: { user } } = await supabase.auth.getUser();
+    console.log('👤 Utilisateur connecté:', user);
+    console.log('🔑 Métadonnées utilisateur:', user?.user_metadata);
+    
+    console.log('🔍 Début de fetchMessages');
     set({ isLoading: true, error: null });
     try {
       const { pagination } = get();
       const from = (pagination.page - 1) * pagination.pageSize;
       const to = from + pagination.pageSize - 1;
-
+      
+      console.log('📄 Pagination:', { from, to, page: pagination.page, pageSize: pagination.pageSize });
+      
       const { data, error, count } = await supabase
         .from('contact_messages')
         .select('*', { count: 'exact' })
         .order('created_at', { ascending: false })
         .range(from, to);
-
-      if (error) throw error;
+      
+      console.log('📊 Résultat Supabase:', { data, error, count });
+      console.log('📝 Nombre de messages récupérés:', data?.length || 0);
+      
+      if (error) {
+        console.error('❌ Erreur Supabase:', error);
+        throw error;
+      }
+      
       set({ 
-        messages: data,
+        messages: data || [],
         pagination: { ...get().pagination, total: count || 0 }
       });
+      
+      console.log('✅ Messages mis à jour dans le store:', data?.length || 0);
     } catch (error) {
+      console.error('💥 Erreur dans fetchMessages:', error);
       set({ error: (error as Error).message });
     } finally {
       set({ isLoading: false });

@@ -13,6 +13,14 @@ const MessagesList = () => {
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [expandedMessage, setExpandedMessage] = useState<string | null>(null);
 
+  // Log de débogage pour identifier le problème
+  console.log('📋 État du store MessagesList:', { 
+    messages, 
+    messagesLength: messages?.length || 0,
+    isLoading, 
+    pagination,
+  });
+
   const getStatusConfig = (status: string) => {
     switch (status) {
       case 'replied':
@@ -162,7 +170,7 @@ const MessagesList = () => {
             </div>
           </div>
 
-          {/* Filtres */}
+          {/* Filtres et bouton de débogage */}
           <div className="flex flex-wrap gap-4 mb-6">
             <select
               value={filterStatus}
@@ -174,6 +182,17 @@ const MessagesList = () => {
               <option value="read">Lus</option>
               <option value="replied">Répondus</option>
             </select>
+            
+            {/* Bouton de débogage */}
+            <button
+              onClick={() => {
+                console.log('🔄 Rechargement manuel des messages');
+                fetchMessages();
+              }}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              🔄 Recharger les messages
+            </button>
           </div>
         </div>
 
@@ -261,6 +280,7 @@ const MessagesList = () => {
             <MessageCircle className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <p className="text-gray-400 text-lg">Aucun message trouvé</p>
             <p className="text-gray-500 text-sm">Les messages de contact apparaîtront ici</p>
+            <p className="text-gray-500 text-xs mt-2">Debug: {messages.length} messages dans le store</p>
           </div>
         )}
 
