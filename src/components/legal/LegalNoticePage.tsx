@@ -23,11 +23,6 @@ const LegalNoticePage = () => {
             </p>
             <div className="text-gray-300 mb-6">
               <p>Black Road Music</p>
-              <p>32 Rue de la Musique</p>
-              <p>75011 Paris, France</p>
-              <p>SIRET : XX XXX XXX XXXXX</p>
-              <p>Capital social : XX XXX €</p>
-              <p>TVA Intracommunautaire : FR XX XXX XXX XXX</p>
             </div>
             <p className="text-gray-300">
               Directeur de la publication : KAAZTHENOVA<br />
