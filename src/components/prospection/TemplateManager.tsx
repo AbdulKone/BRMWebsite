@@ -473,7 +473,7 @@ const TemplateManager: React.FC = () => {
       {/* Modal de création/édition - Style cohérent avec ProspectForm */}
       {isFormOpen && (
         <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 fixed inset-0 z-50 overflow-y-auto">
-          <div className="container mx-auto px-4 py-4 sm:py-8">
+          <div className="container mx-auto px-4 py-4 sm:py-8 min-h-screen">
             {/* Header */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-6">
@@ -502,7 +502,7 @@ const TemplateManager: React.FC = () => {
             </div>
 
             {/* Formulaire - Scrollable */}
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 sm:p-8">
+            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 sm:p-8 mb-8">
               <form onSubmit={(e) => { e.preventDefault(); handleSaveTemplate(); }} className="space-y-6">
                 {/* Informations générales */}
                 <div className="space-y-4">
