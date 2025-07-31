@@ -13,6 +13,7 @@ interface TemplateFormData {
   priority: 'low' | 'medium' | 'high';
   segment_targeting: string[];
   ab_test_variant?: 'A' | 'B' | 'C';
+  template_key: string;
 }
 
 const TemplateManager = () => {
@@ -33,6 +34,8 @@ const TemplateManager = () => {
     is_active: true,
     priority: 'medium',
     segment_targeting: [],
+    ab_test_variant: 'A',
+    template_key: ''
   });
 
   useEffect(() => {
@@ -56,12 +59,47 @@ const TemplateManager = () => {
     }
   };
 
+  const generateTemplateKey = (name: string): string => {
+    return name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '_')
+      .replace(/^_+|_+$/g, '')
+      + '_' + Date.now();
+  };
+
   const handleSaveTemplate = async () => {
     try {
+      if (!formData.name.trim()) {
+        setError('Le nom du template est requis');
+        return;
+      }
+      if (!formData.subject.trim()) {
+        setError('Le sujet est requis');
+        return;
+      }
+      if (!formData.content.trim()) {
+        setError('Le contenu est requis');
+        return;
+      }
+
       const templateData = {
-        ...formData,
-        variables: JSON.stringify(formData.variables),
-        segment_targeting: JSON.stringify(formData.segment_targeting),
+        name: formData.name.trim(),
+        subject: formData.subject.trim(),
+        content: formData.content.trim(),
+        template_key: editingTemplate ? editingTemplate.template_key : (formData.template_key || generateTemplateKey(formData.name)),
+        variables: formData.variables,
+        segment_targeting: formData.segment_targeting,
+        category: formData.category,
+        is_active: formData.is_active,
+        priority: formData.priority,
+        ab_test_variant: formData.ab_test_variant || 'A',
+        performance_metrics: {
+          open_rate: 0,
+          click_rate: 0,
+          response_rate: 0,
+          conversion_rate: 0,
+          last_updated: new Date().toISOString()
+        }
       };
 
       if (editingTemplate) {
@@ -79,7 +117,9 @@ const TemplateManager = () => {
 
       await loadTemplates();
       handleCloseForm();
+      setError(null);
     } catch (err) {
+      console.error('Erreur lors de la sauvegarde:', err);
       setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
     }
   };
@@ -105,6 +145,7 @@ const TemplateManager = () => {
       ...template,
       id: undefined,
       name: `${template.name} (Copie)`,
+      template_key: generateTemplateKey(`${template.name}_copy`),
       is_active: template.is_active,
       created_at: undefined,
       updated_at: undefined
@@ -115,11 +156,12 @@ const TemplateManager = () => {
       subject: duplicatedTemplate.subject,
       content: duplicatedTemplate.content,
       variables: Array.isArray(duplicatedTemplate.variables) ? duplicatedTemplate.variables : [],
-      category: duplicatedTemplate.category as 'introduction' | 'follow_up' | 'proposal' | 'nurturing' | 'closing' | 'reactivation', // Fixed: added type assertion
+      category: duplicatedTemplate.category as 'introduction' | 'follow_up' | 'proposal' | 'nurturing' | 'closing' | 'reactivation',
       is_active: duplicatedTemplate.is_active,
-      priority: duplicatedTemplate.priority as 'low' | 'medium' | 'high', // Fixed: added type assertion
+      priority: duplicatedTemplate.priority as 'low' | 'medium' | 'high',
       segment_targeting: Array.isArray(duplicatedTemplate.segment_targeting) ? duplicatedTemplate.segment_targeting : [],
-      ab_test_variant: duplicatedTemplate.ab_test_variant as 'A' | 'B' | 'C' | undefined, // Fixed: added type assertion
+      ab_test_variant: duplicatedTemplate.ab_test_variant as 'A' | 'B' | 'C' | undefined,
+      template_key: duplicatedTemplate.template_key
     });
     setEditingTemplate(null);
     setIsFormOpen(true);
@@ -131,11 +173,12 @@ const TemplateManager = () => {
       subject: template.subject,
       content: template.content,
       variables: Array.isArray(template.variables) ? template.variables : [],
-      category: template.category as 'introduction' | 'follow_up' | 'proposal' | 'nurturing' | 'closing' | 'reactivation', // Fixed: added type assertion
+      category: template.category as 'introduction' | 'follow_up' | 'proposal' | 'nurturing' | 'closing' | 'reactivation',
       is_active: template.is_active,
-      priority: template.priority as 'low' | 'medium' | 'high', // Fixed: added type assertion
+      priority: template.priority as 'low' | 'medium' | 'high',
       segment_targeting: Array.isArray(template.segment_targeting) ? template.segment_targeting : [],
-      ab_test_variant: template.ab_test_variant as 'A' | 'B' | 'C' | undefined, // Fixed: added type assertion
+      ab_test_variant: template.ab_test_variant as 'A' | 'B' | 'C' | undefined,
+      template_key: template.template_key
     });
     setEditingTemplate(template);
     setIsFormOpen(true);
@@ -144,6 +187,7 @@ const TemplateManager = () => {
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setEditingTemplate(null);
+    setError(null);
     setFormData({
       name: '',
       subject: '',
@@ -153,6 +197,8 @@ const TemplateManager = () => {
       is_active: true,
       priority: 'medium',
       segment_targeting: [],
+      ab_test_variant: 'A',
+      template_key: ''
     });
   };
 
@@ -262,7 +308,7 @@ const TemplateManager = () => {
                     <span className={`px-2 py-1 rounded-full text-xs text-white ${priority?.color}`}>
                       {priority?.label}
                     </span>
-                    {!template.is_active && ( // Changed from isActive
+                    {!template.is_active && (
                       <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
                         Inactif
                       </span>
@@ -286,7 +332,7 @@ const TemplateManager = () => {
                     <Eye className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={() => handleDuplicate(template)} // Fixed: was handleDuplicateTemplate
+                    onClick={() => handleDuplicate(template)}
                     className="p-2 text-gray-400 hover:text-white hover:bg-gray-600 rounded transition-colors"
                     title="Dupliquer"
                   >
@@ -354,6 +400,25 @@ const TemplateManager = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Clé du template
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.template_key}
+                      onChange={(e) => setFormData(prev => ({ ...prev, template_key: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Clé unique du template"
+                      disabled={!!editingTemplate}
+                    />
+                    {!editingTemplate && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        Laissez vide pour générer automatiquement
+                      </p>
+                    )}
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
                       Sujet de l'email
                     </label>
                     <input
@@ -400,6 +465,21 @@ const TemplateManager = () => {
                     </div>
                   </div>
 
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Variant A/B Test
+                    </label>
+                    <select
+                      value={formData.ab_test_variant || 'A'}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ab_test_variant: e.target.value as 'A' | 'B' | 'C' }))}
+                      className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="A">Variant A</option>
+                      <option value="B">Variant B</option>
+                      <option value="C">Variant C</option>
+                    </select>
+                  </div>
+
                   <div className="flex items-center space-x-4">
                     <label className="flex items-center space-x-2">
                       <input
@@ -444,6 +524,7 @@ const TemplateManager = () => {
                 </div>
               </div>
 
+              {/* Boutons d'action */}
               <div className="flex justify-end space-x-4 mt-6">
                 <button
                   onClick={handleCloseForm}
