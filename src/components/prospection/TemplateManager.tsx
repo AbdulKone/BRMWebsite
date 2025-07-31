@@ -472,10 +472,10 @@ const TemplateManager: React.FC = () => {
 
       {/* Modal de création/édition - Style cohérent avec ProspectForm */}
       {isFormOpen && (
-        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 fixed inset-0 z-50">
-          <div className="container mx-auto px-4 py-4 sm:py-8">
+        <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 fixed inset-0 z-50 overflow-y-auto">
+          <div className="container mx-auto px-4 py-4 sm:py-8 min-h-screen flex flex-col">
             {/* Header */}
-            <div className="mb-8">
+            <div className="mb-8 flex-shrink-0">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-4">
                   <div className="p-3 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl">
@@ -501,9 +501,9 @@ const TemplateManager: React.FC = () => {
               </div>
             </div>
 
-            {/* Formulaire */}
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 sm:p-8">
-              <form onSubmit={(e) => { e.preventDefault(); handleSaveTemplate(); }} className="space-y-6">
+            {/* Formulaire - Scrollable */}
+            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 sm:p-8 flex-1">
+              <form onSubmit={(e) => { e.preventDefault(); handleSaveTemplate(); }} className="space-y-6 h-full">
                 {/* Informations générales */}
                 <div className="space-y-4">
                   <h3 className="text-lg font-semibold text-white flex items-center space-x-2">
@@ -598,7 +598,7 @@ const TemplateManager: React.FC = () => {
                     <textarea
                       value={formData.content}
                       onChange={handleContentChange}
-                      rows={8}
+                      rows={6}
                       className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
                       placeholder="Contenu de votre template email..."
                       disabled={saving}
