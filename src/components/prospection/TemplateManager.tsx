@@ -502,7 +502,7 @@ const TemplateManager: React.FC = () => {
             </div>
 
             {/* Formulaire - Scrollable */}
-            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 sm:p-8 flex-1">
+            <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 sm:p-8 flex-1 overflow-y-auto">
               <form onSubmit={(e) => { e.preventDefault(); handleSaveTemplate(); }} className="space-y-6 h-full">
                 {/* Informations générales */}
                 <div className="space-y-4">
