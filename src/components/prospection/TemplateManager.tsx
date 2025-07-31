@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
-import { Plus, Edit, Trash2, Eye, X, Save, AlertCircle } from 'lucide-react';
+import { Plus, Edit, Trash2, Eye, X, Save, AlertCircle, FileText, Copy } from 'lucide-react';
 
 interface TemplateFormData {
   id?: string;
@@ -69,9 +69,9 @@ const TemplateManager: React.FC = () => {
     
     if (matches) {
       matches.forEach(match => {
-        const variable = match.replace(/[{}]/g, '').trim();
-        if (variable && !variables[variable]) {
-          variables[variable] = '';
+        const variableName = match.replace(/[{}]/g, '').trim();
+        if (variableName && !variables[variableName]) {
+          variables[variableName] = '';
         }
       });
     }
@@ -336,16 +336,12 @@ const TemplateManager: React.FC = () => {
     }));
   }, []);
 
-  // Filtrage des templates
-  const filteredTemplates = useMemo(() => templates, [templates]);
-
   // Catégories disponibles
   const categories = useMemo((): Category[] => [
     { value: 'prospection', label: 'Prospection' },
-    { value: 'suivi', label: 'Suivi' },
-    { value: 'relance', label: 'Relance' },
-    { value: 'newsletter', label: 'Newsletter' },
-    { value: 'promotion', label: 'Promotion' }
+    { value: 'follow_up', label: 'Relance' },
+    { value: 'closing', label: 'Closing' },
+    { value: 'nurturing', label: 'Nurturing' }
   ], []);
 
   // Priorités disponibles
@@ -355,12 +351,15 @@ const TemplateManager: React.FC = () => {
     { value: 'low', label: 'Basse' }
   ], []);
 
+  // Filtrage des templates
+  const filteredTemplates = useMemo(() => templates, [templates]);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="flex items-center space-x-2">
-          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-          <div className="text-gray-600">Chargement des templates...</div>
+          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-400"></div>
+          <div className="text-gray-300">Chargement des templates...</div>
         </div>
       </div>
     );
@@ -368,65 +367,91 @@ const TemplateManager: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-gray-900">Gestion des Templates</h2>
+      {/* Header avec design cohérent */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+        <div>
+          <h2 className="text-2xl font-bold text-white mb-2 flex items-center space-x-3">
+            <div className="p-2 bg-gradient-to-r from-purple-600 to-blue-600 rounded-lg">
+              <FileText className="w-6 h-6 text-white" />
+            </div>
+            <span>Gestion des Templates</span>
+          </h2>
+          <p className="text-gray-400">Créez et gérez vos templates d'emails de prospection</p>
+        </div>
+        
         <button
           onClick={() => setIsFormOpen(true)}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center gap-2"
+          className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
         >
-          <Plus className="h-4 w-4" />
-          Nouveau Template
+          <Plus className="w-5 h-5" />
+          <span>Nouveau Template</span>
         </button>
       </div>
 
+      {/* Message d'erreur avec design cohérent */}
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-center gap-2">
-          <AlertCircle className="h-5 w-5 text-red-600" />
-          <span className="text-red-700">{error}</span>
+        <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 flex items-center gap-3">
+          <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
+          <span className="text-red-300">{error}</span>
         </div>
       )}
 
+      {/* Liste des templates avec design sombre */}
       <div className="grid gap-4">
         {filteredTemplates.map((template) => (
-          <div key={template.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div key={template.id} className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-xl p-6 hover:border-gray-600/50 transition-all duration-200">
             <div className="flex justify-between items-start">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-gray-900">{template.name}</h3>
-                <p className="text-gray-600 mt-1">{template.subject}</p>
-                <div className="flex items-center gap-4 mt-2">
-                  <span className="text-sm text-gray-500">Catégorie: {template.category}</span>
-                  <span className="text-sm text-gray-500">Priorité: {template.priority}</span>
-                  <span className="text-sm text-gray-500">Variant: {template.ab_test_variant}</span>
+                <h3 className="text-lg font-semibold text-white mb-2">{template.name}</h3>
+                <p className="text-gray-300 mb-3">{template.subject}</p>
+                <div className="flex flex-wrap items-center gap-4">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-600/20 text-blue-300 border border-blue-500/30">
+                    {template.category}
+                  </span>
+                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${
+                    template.priority === 'high' 
+                      ? 'bg-red-600/20 text-red-300 border-red-500/30'
+                      : template.priority === 'medium'
+                      ? 'bg-yellow-600/20 text-yellow-300 border-yellow-500/30'
+                      : 'bg-green-600/20 text-green-300 border-green-500/30'
+                  }`}>
+                    Priorité {template.priority === 'high' ? 'Haute' : template.priority === 'medium' ? 'Moyenne' : 'Basse'}
+                  </span>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-600/20 text-purple-300 border border-purple-500/30">
+                    Variant {template.ab_test_variant}
+                  </span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              
+              {/* Boutons d'action avec design cohérent */}
+              <div className="flex items-center gap-2 ml-4">
                 <button
                   onClick={() => {
                     setPreviewTemplate(template);
                     setIsPreviewOpen(true);
                   }}
-                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
+                  className="p-2 text-gray-400 hover:text-blue-400 hover:bg-blue-600/10 rounded-lg transition-all duration-200"
                   title="Aperçu"
                 >
                   <Eye className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => handleEditTemplate(template)}
-                  className="p-2 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded"
+                  className="p-2 text-gray-400 hover:text-green-400 hover:bg-green-600/10 rounded-lg transition-all duration-200"
                   title="Modifier"
                 >
                   <Edit className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => handleDuplicate(template)}
-                  className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded"
+                  className="p-2 text-gray-400 hover:text-purple-400 hover:bg-purple-600/10 rounded-lg transition-all duration-200"
                   title="Dupliquer"
                 >
-                  <Plus className="h-4 w-4" />
+                  <Copy className="h-4 w-4" />
                 </button>
                 <button
                   onClick={() => handleDeleteTemplate(template)}
-                  className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded"
+                  className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-600/10 rounded-lg transition-all duration-200"
                   title="Supprimer"
                 >
                   <Trash2 className="h-4 w-4" />
@@ -437,101 +462,108 @@ const TemplateManager: React.FC = () => {
         ))}
 
         {filteredTemplates.length === 0 && (
-          <div className="text-center py-12 text-gray-500">
-            Aucun template trouvé. Créez votre premier template pour commencer.
+          <div className="text-center py-12 text-gray-400 bg-gray-800/30 rounded-xl border border-gray-700/50">
+            <FileText className="w-12 h-12 text-gray-500 mx-auto mb-4" />
+            <p className="text-lg font-medium mb-2">Aucun template trouvé</p>
+            <p className="text-sm">Créez votre premier template pour commencer.</p>
           </div>
         )}
       </div>
 
-      {/* Modal de création/édition */}
+      {/* Modal de création/édition avec design sombre */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">
+                <h3 className="text-xl font-semibold text-white">
                   {editingTemplate ? 'Modifier le Template' : 'Nouveau Template'}
                 </h3>
                 <button
                   onClick={handleCloseForm}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all duration-200"
                 >
                   <X className="h-6 w-6" />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Nom du Template *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={handleNameChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Nom du template"
-                      disabled={saving}
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Sujet de l'Email *
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.subject}
-                      onChange={handleSubjectChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="Sujet de l'email"
-                      disabled={saving}
-                    />
-                  </div>
+              <div className="space-y-6">
+                {/* Nom du template */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Nom du template
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.name}
+                    onChange={handleNameChange}
+                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Nom du template"
+                    disabled={saving}
+                  />
                 </div>
 
+                {/* Sujet de l'email */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Sujet de l'email
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.subject}
+                    onChange={handleSubjectChange}
+                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Sujet de votre email"
+                    disabled={saving}
+                  />
+                </div>
+
+                {/* Catégorie et Priorité */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
                       Catégorie
                     </label>
                     <select
                       value={formData.category}
                       onChange={handleCategoryChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       disabled={saving}
                     >
-                      {categories.map(cat => (
-                        <option key={cat.value} value={cat.value}>{cat.label}</option>
+                      {categories.map(category => (
+                        <option key={category.value} value={category.value}>
+                          {category.label}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
                       Priorité
                     </label>
                     <select
                       value={formData.priority}
                       onChange={handlePriorityChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       disabled={saving}
                     >
                       {priorities.map(priority => (
-                        <option key={priority.value} value={priority.value}>{priority.label}</option>
+                        <option key={priority.value} value={priority.value}>
+                          {priority.label}
+                        </option>
                       ))}
                     </select>
                   </div>
 
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Variant A/B Test
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Variant A/B
                     </label>
                     <select
-                      value={formData.ab_test_variant}
-                      onChange={handleVariantChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={formData.ab_test_variant || 'A'}
+                      onChange={(e) => setFormData(prev => ({ ...prev, ab_test_variant: e.target.value as 'A' | 'B' | 'C' }))}
+                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                       disabled={saving}
                     >
                       <option value="A">Variant A</option>
@@ -541,37 +573,41 @@ const TemplateManager: React.FC = () => {
                   </div>
                 </div>
 
+                {/* Contenu du template */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contenu du Template *
+                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                    Contenu du template
                   </label>
                   <textarea
                     value={formData.content}
                     onChange={handleContentChange}
                     rows={12}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
                     placeholder="Contenu de votre template email..."
                     disabled={saving}
                   />
-                
+                  <p className="text-sm text-gray-400 mt-2">
+Use {`{{variables}}`} to insert dynamic variables
+                  </p>
                 </div>
 
+                {/* Variables détectées */}
                 {Object.keys(formData.variables).length > 0 && (
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                    <label className="block text-sm font-medium text-gray-300 mb-3">
                       Variables détectées
                     </label>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {Object.keys(formData.variables).map((variableName: string) => (
                         <div key={variableName}>
-                          <label className="block text-sm text-gray-600 mb-1">
+                          <label className="block text-sm text-gray-400 mb-1">
                             {variableName}
                           </label>
                           <input
                             type="text"
                             value={formData.variables[variableName]}
                             onChange={(e) => handleVariableChange(variableName, e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                             placeholder={`Valeur par défaut pour ${variableName}`}
                             disabled={saving}
                           />
@@ -582,18 +618,19 @@ const TemplateManager: React.FC = () => {
                 )}
               </div>
 
-              <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
+              {/* Boutons d'action */}
+              <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 border-t border-gray-700/50 mt-6">
                 <button
                   onClick={handleCloseForm}
+                  className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-medium transition-all duration-200"
                   disabled={saving}
-                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Annuler
                 </button>
                 <button
                   onClick={handleSaveTemplate}
-                  disabled={saving}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                  disabled={saving || !formData.name.trim() || !formData.subject.trim() || !formData.content.trim()}
+                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
                 >
                   {saving ? (
                     <>
@@ -613,54 +650,74 @@ const TemplateManager: React.FC = () => {
         </div>
       )}
 
-      {/* Modal d'aperçu */}
+      {/* Modal d'aperçu avec design sombre */}
       {isPreviewOpen && previewTemplate && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Aperçu du Template</h3>
+                <h3 className="text-xl font-semibold text-white">Aperçu du Template</h3>
                 <button
                   onClick={() => setIsPreviewOpen(false)}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all duration-200"
                 >
                   <X className="h-6 w-6" />
                 </button>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <h4 className="font-medium text-gray-900">Nom:</h4>
-                  <p className="text-gray-700">{previewTemplate.name}</p>
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <h4 className="font-medium text-gray-300 mb-2">Nom:</h4>
+                    <p className="text-white bg-gray-700/50 p-3 rounded-lg">{previewTemplate.name}</p>
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-gray-300 mb-2">Catégorie:</h4>
+                    <p className="text-white bg-gray-700/50 p-3 rounded-lg">{previewTemplate.category}</p>
+                  </div>
                 </div>
+                
                 <div>
-                  <h4 className="font-medium text-gray-900">Sujet:</h4>
-                  <p className="text-gray-700">{previewTemplate.subject}</p>
+                  <h4 className="font-medium text-gray-300 mb-2">Sujet:</h4>
+                  <p className="text-white bg-gray-700/50 p-3 rounded-lg">{previewTemplate.subject}</p>
                 </div>
+                
                 <div>
-                  <h4 className="font-medium text-gray-900">Contenu:</h4>
-                  <div className="bg-gray-50 p-4 rounded-lg whitespace-pre-wrap">
+                  <h4 className="font-medium text-gray-300 mb-2">Contenu:</h4>
+                  <div className="bg-gray-700/50 p-4 rounded-lg text-white whitespace-pre-wrap max-h-64 overflow-y-auto">
                     {previewTemplate.content}
                   </div>
                 </div>
+                
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <h4 className="font-medium text-gray-900">Catégorie:</h4>
-                    <p className="text-gray-700">{previewTemplate.category}</p>
+                    <h4 className="font-medium text-gray-300 mb-2">Priorité:</h4>
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${
+                      previewTemplate.priority === 'high' 
+                        ? 'bg-red-600/20 text-red-300 border border-red-500/30'
+                        : previewTemplate.priority === 'medium'
+                        ? 'bg-yellow-600/20 text-yellow-300 border border-yellow-500/30'
+                        : 'bg-green-600/20 text-green-300 border border-green-500/30'
+                    }`}>
+                      {previewTemplate.priority === 'high' ? 'Haute' : previewTemplate.priority === 'medium' ? 'Moyenne' : 'Basse'}
+                    </span>
                   </div>
                   <div>
-                    <h4 className="font-medium text-gray-900">Priorité:</h4>
-                    <p className="text-gray-700">{previewTemplate.priority}</p>
+                    <h4 className="font-medium text-gray-300 mb-2">Variant A/B:</h4>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-600/20 text-purple-300 border border-purple-500/30">
+                      Variant {previewTemplate.ab_test_variant}
+                    </span>
                   </div>
                 </div>
+                
                 {Object.keys(previewTemplate.variables).length > 0 && (
                   <div>
-                    <h4 className="font-medium text-gray-900">Variables:</h4>
-                    <div className="bg-gray-50 p-4 rounded-lg">
+                    <h4 className="font-medium text-gray-300 mb-3">Variables:</h4>
+                    <div className="grid grid-cols-2 gap-3">
                       {Object.entries(previewTemplate.variables).map(([key, value]) => (
-                        <div key={key} className="flex justify-between py-1">
-                          <span className="font-mono text-sm">{key}:</span>
-                          <span className="text-sm">{value}</span>
+                        <div key={key} className="bg-gray-700/50 p-3 rounded-lg">
+                          <span className="text-blue-300 font-medium">{key}:</span>
+                          <span className="text-gray-300 ml-2">{value || '(vide)'}</span>
                         </div>
                       ))}
                     </div>
