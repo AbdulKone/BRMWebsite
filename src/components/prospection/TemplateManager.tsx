@@ -470,24 +470,26 @@ const TemplateManager: React.FC = () => {
         )}
       </div>
 
-      {/* Modal de création/édition avec design sombre */}
+      {/* Modal de création/édition optimisée */}
       {isFormOpen && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-white">
-                  {editingTemplate ? 'Modifier le Template' : 'Nouveau Template'}
-                </h3>
-                <button
-                  onClick={handleCloseForm}
-                  className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all duration-200"
-                >
-                  <X className="h-6 w-6" />
-                </button>
-              </div>
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-gray-800/95 backdrop-blur-sm border border-gray-700/50 rounded-2xl shadow-2xl w-full max-w-2xl lg:max-w-3xl max-h-[95vh] flex flex-col">
+            {/* Header fixe */}
+            <div className="flex justify-between items-center p-4 sm:p-6 border-b border-gray-700/50 flex-shrink-0">
+              <h3 className="text-lg sm:text-xl font-semibold text-white">
+                {editingTemplate ? 'Modifier le Template' : 'Nouveau Template'}
+              </h3>
+              <button
+                onClick={handleCloseForm}
+                className="p-2 text-gray-400 hover:text-white hover:bg-gray-700 rounded-lg transition-all duration-200"
+              >
+                <X className="h-5 w-5 sm:h-6 sm:w-6" />
+              </button>
+            </div>
 
-              <div className="space-y-6">
+            {/* Contenu scrollable */}
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+              <div className="space-y-4 sm:space-y-6">
                 {/* Nom du template */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
@@ -497,7 +499,7 @@ const TemplateManager: React.FC = () => {
                     type="text"
                     value={formData.name}
                     onChange={handleNameChange}
-                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
                     placeholder="Nom du template"
                     disabled={saving}
                   />
@@ -512,14 +514,14 @@ const TemplateManager: React.FC = () => {
                     type="text"
                     value={formData.subject}
                     onChange={handleSubjectChange}
-                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
                     placeholder="Sujet de votre email"
                     disabled={saving}
                   />
                 </div>
 
-                {/* Catégorie et Priorité */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Catégorie, Priorité et Variant - Layout responsive */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Catégorie
@@ -527,7 +529,7 @@ const TemplateManager: React.FC = () => {
                     <select
                       value={formData.category}
                       onChange={handleCategoryChange}
-                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
                       disabled={saving}
                     >
                       {categories.map(category => (
@@ -545,7 +547,7 @@ const TemplateManager: React.FC = () => {
                     <select
                       value={formData.priority}
                       onChange={handlePriorityChange}
-                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
                       disabled={saving}
                     >
                       {priorities.map(priority => (
@@ -556,14 +558,14 @@ const TemplateManager: React.FC = () => {
                     </select>
                   </div>
 
-                  <div>
+                  <div className="sm:col-span-2 lg:col-span-1">
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Variant A/B
                     </label>
                     <select
                       value={formData.ab_test_variant || 'A'}
                       onChange={(e) => setFormData(prev => ({ ...prev, ab_test_variant: e.target.value as 'A' | 'B' | 'C' }))}
-                      className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                      className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-sm sm:text-base"
                       disabled={saving}
                     >
                       <option value="A">Variant A</option>
@@ -573,7 +575,7 @@ const TemplateManager: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Contenu du template */}
+                {/* Contenu du template - Taille réduite */}
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
                     Contenu du template
@@ -581,34 +583,34 @@ const TemplateManager: React.FC = () => {
                   <textarea
                     value={formData.content}
                     onChange={handleContentChange}
-                    rows={12}
-                    className="w-full px-4 py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none"
+                    rows={8}
+                    className="w-full px-3 sm:px-4 py-2 sm:py-3 bg-gray-700/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 resize-none text-sm sm:text-base"
                     placeholder="Contenu de votre template email..."
                     disabled={saving}
                   />
-                  <p className="text-sm text-gray-400 mt-2">
-Use {`{{variables}}`} to insert dynamic variables
+                  <p className="text-xs sm:text-sm text-gray-400 mt-2">
+                      Use {`{{variables}}`} to insert dynamic variables
                   </p>
                 </div>
 
-                {/* Variables détectées */}
+                {/* Variables détectées - Layout optimisé */}
                 {Object.keys(formData.variables).length > 0 && (
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-3">
-                      Variables détectées
+                      Variables détectées ({Object.keys(formData.variables).length})
                     </label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-40 overflow-y-auto bg-gray-900/20 p-3 rounded-lg border border-gray-700/30">
                       {Object.keys(formData.variables).map((variableName: string) => (
-                        <div key={variableName}>
-                          <label className="block text-sm text-gray-400 mb-1">
+                        <div key={variableName} className="space-y-1">
+                          <label className="block text-xs text-gray-400">
                             {variableName}
                           </label>
                           <input
                             type="text"
                             value={formData.variables[variableName]}
                             onChange={(e) => handleVariableChange(variableName, e.target.value)}
-                            className="w-full px-3 py-2 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
-                            placeholder={`Valeur par défaut pour ${variableName}`}
+                            className="w-full px-2 py-1.5 bg-gray-700/50 border border-gray-600/50 rounded-lg text-white placeholder-gray-400 focus:ring-1 focus:ring-blue-500 focus:border-transparent transition-all duration-200 text-xs sm:text-sm"
+                            placeholder={`Valeur par défaut`}
                             disabled={saving}
                           />
                         </div>
@@ -618,11 +620,11 @@ Use {`{{variables}}`} to insert dynamic variables
                 )}
               </div>
 
-              {/* Boutons d'action */}
-              <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 border-t border-gray-700/50 mt-6">
+              {/* Footer fixe avec boutons */}
+              <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-3 p-4 sm:p-6 border-t border-gray-700/50 bg-gray-800/50 flex-shrink-0">
                 <button
                   onClick={handleCloseForm}
-                  className="px-6 py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-medium transition-all duration-200"
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-gray-700 hover:bg-gray-600 text-white rounded-xl font-medium transition-all duration-200 text-sm sm:text-base"
                   disabled={saving}
                 >
                   Annuler
@@ -630,16 +632,16 @@ Use {`{{variables}}`} to insert dynamic variables
                 <button
                   onClick={handleSaveTemplate}
                   disabled={saving || !formData.name.trim() || !formData.subject.trim() || !formData.content.trim()}
-                  className="px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
+                  className="px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl text-sm sm:text-base"
                 >
                   {saving ? (
                     <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                      <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b-2 border-white"></div>
                       <span>Sauvegarde...</span>
                     </>
                   ) : (
                     <>
-                      <Save className="h-4 w-4" />
+                      <Save className="h-3 w-3 sm:h-4 sm:w-4" />
                       <span>{editingTemplate ? 'Mettre à jour' : 'Créer'}</span>
                     </>
                   )}
