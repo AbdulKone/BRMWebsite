@@ -11,13 +11,14 @@ import {
   TrendingUp, Target, Zap, Bell 
 } from 'lucide-react';
 
-type ActiveTab = 'list' | 'form' | 'details' | 'campaign' | 'stats' | 'templates';
+type ActiveTab = 'list' | 'form' | 'details' | 'campaign' | 'stats' | 'templates' | 'template-form';
 
 const ProspectionDashboard = () => {
   const { loadProspects, prospects } = useProspectionStore();
   const [activeTab, setActiveTab] = useState<ActiveTab>('list');
   const [selectedProspectId, setSelectedProspectId] = useState<string | null>(null);
   const [editingProspectId, setEditingProspectId] = useState<string | null>(null);
+  const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -56,6 +57,21 @@ const ProspectionDashboard = () => {
     }
   };
 
+  const handleAddTemplate = () => {
+    setEditingTemplateId(null);
+    setActiveTab('template-form');
+  };
+
+  const handleEditTemplate = (templateId: string) => {
+    setEditingTemplateId(templateId);
+    setActiveTab('template-form');
+  };
+
+  const handleCloseTemplateForm = () => {
+    setEditingTemplateId(null);
+    setActiveTab('templates');
+  };
+
   const handleTabChange = (tabId: ActiveTab) => {
     setActiveTab(tabId);
     setIsMobileMenuOpen(false);
@@ -67,11 +83,6 @@ const ProspectionDashboard = () => {
     { id: 'stats', label: 'Statistiques', icon: BarChart3 },
     { id: 'templates', label: 'Templates', icon: FileText },
   ];
-
-  const getCurrentTabLabel = () => {
-    const currentTab = tabs.find(tab => tab.id === activeTab);
-    return currentTab ? currentTab.label : 'Prospects';
-  };
 
   // Calculer les notifications de suivi
   const upcomingFollowUps = prospects.filter(p => {
@@ -279,7 +290,26 @@ const ProspectionDashboard = () => {
           
           {activeTab === 'templates' && (
             <div className="p-6">
-              <TemplateManager />
+              <TemplateManager 
+                activeTab="list"
+                onTabChange={(tab) => {
+                  if (tab === 'form') {
+                    setActiveTab('template-form');
+                  }
+                }}
+                onEditTemplate={handleEditTemplate}
+                onAddTemplate={handleAddTemplate}
+              />
+            </div>
+          )}
+          
+          {activeTab === 'template-form' && (
+            <div className="p-6">
+              <TemplateManager 
+                activeTab="form"
+                editingTemplateId={editingTemplateId}
+                onCloseForm={handleCloseTemplateForm}
+              />
             </div>
           )}
         </div>
