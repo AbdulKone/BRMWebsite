@@ -6,12 +6,13 @@ import ProspectDetails from './ProspectDetails';
 import EmailCampaign from './EmailCampaign';
 import EmailStatsDashboard from './EmailStatsDashboard';
 import TemplateManager from './TemplateManager';
+import AutomationDashboard from '../admin/AutomationDashboard';
 import { 
   Users, Mail, BarChart3, FileText, Menu, X, 
-  TrendingUp, Target, Zap, Bell 
+  TrendingUp, Target, Zap, Bell, Bot 
 } from 'lucide-react';
 
-type ActiveTab = 'list' | 'form' | 'details' | 'campaign' | 'stats' | 'templates' | 'template-form';
+type ActiveTab = 'list' | 'form' | 'details' | 'campaign' | 'stats' | 'templates' | 'template-form' | 'automation';
 
 const ProspectionDashboard = () => {
   const { loadProspects, prospects } = useProspectionStore();
@@ -82,6 +83,7 @@ const ProspectionDashboard = () => {
     { id: 'campaign', label: 'Campagnes', icon: Mail },
     { id: 'stats', label: 'Statistiques', icon: BarChart3 },
     { id: 'templates', label: 'Templates', icon: FileText },
+    { id: 'automation', label: 'Automation', icon: Bot },
   ];
 
   // Calculer les notifications de suivi
@@ -185,7 +187,7 @@ const ProspectionDashboard = () => {
         </div>
 
         {/* Navigation améliorée */}
-        {(activeTab === 'list' || activeTab === 'campaign' || activeTab === 'stats' || activeTab === 'templates') && (
+        {(activeTab === 'list' || activeTab === 'campaign' || activeTab === 'stats' || activeTab === 'templates' || activeTab === 'automation') && (
           <>
             {/* Navigation desktop */}
             <div className="hidden md:flex space-x-2 mb-8 bg-gray-800/50 backdrop-blur-sm p-2 rounded-2xl border border-gray-700/50">
@@ -204,6 +206,9 @@ const ProspectionDashboard = () => {
                   >
                     <Icon className="w-5 h-5" />
                     <span>{tab.label}</span>
+                    {tab.id === 'automation' && (
+                      <span className="bg-green-500 text-xs px-2 py-1 rounded-full">NEW</span>
+                    )}
                   </button>
                 );
               })}
@@ -220,14 +225,19 @@ const ProspectionDashboard = () => {
                       <button
                         key={tab.id}
                         onClick={() => handleTabChange(tab.id as ActiveTab)}
-                        className={`w-full flex items-center space-x-4 px-4 py-4 rounded-xl text-left transition-all duration-200 ${
+                        className={`w-full flex items-center justify-between px-4 py-4 rounded-xl text-left transition-all duration-200 ${
                           isActive
                             ? 'bg-blue-600 text-white'
                             : 'text-gray-300 hover:text-white hover:bg-gray-700/50'
                         }`}
                       >
-                        <Icon className="w-6 h-6" />
-                        <span className="font-medium">{tab.label}</span>
+                        <div className="flex items-center space-x-4">
+                          <Icon className="w-6 h-6" />
+                          <span className="font-medium">{tab.label}</span>
+                        </div>
+                        {tab.id === 'automation' && (
+                          <span className="bg-green-500 text-xs px-2 py-1 rounded-full">NEW</span>
+                        )}
                       </button>
                     );
                   })}
@@ -310,6 +320,12 @@ const ProspectionDashboard = () => {
                 editingTemplateId={editingTemplateId}
                 onCloseForm={handleCloseTemplateForm}
               />
+            </div>
+          )}
+
+          {activeTab === 'automation' && (
+            <div className="p-6">
+              <AutomationDashboard />
             </div>
           )}
         </div>
