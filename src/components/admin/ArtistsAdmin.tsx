@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useContentStore } from '../../stores/contentStore';
 import { Artist } from '../../lib/types';
@@ -13,7 +13,6 @@ import {
   Image as ImageIcon,
   X,
   Upload,
-  Eye,
   Menu
 } from 'lucide-react';
 import ConfirmDialog from '../shared/ConfirmDialog';
@@ -22,7 +21,7 @@ import DragDropReorder from './DragDropReorder';
 import { ArrowUpDown } from 'lucide-react';
 
 const ArtistsAdmin = () => {
-  const { artists, createArtist, updateArtist, deleteArtist, reorderItems } = useContentStore();
+  const { artists, createArtist, updateArtist, deleteArtist } = useContentStore();
   const [activeTab, setActiveTab] = useState<'list' | 'form'>('list');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editingArtist, setEditingArtist] = useState<string | null>(null);
@@ -156,6 +155,7 @@ const ArtistsAdmin = () => {
     if (artistToDelete) {
       await deleteArtist(artistToDelete);
       setArtistToDelete(null);
+      setDeleteConfirmOpen(false);
     }
   };
 
@@ -172,6 +172,38 @@ const ArtistsAdmin = () => {
     resetForm();
     setActiveTab('form');
   };
+
+  // Fonction corrigée pour la réorganisation
+  const handleReorderArtists = useCallback(async (reorderedArtists: Artist[]) => {
+    try {
+      // Mettre à jour l'ordre d'affichage pour chaque artiste
+      const updates = reorderedArtists.map((artist, index) => 
+        updateArtist(artist.id, { display_order: index })
+      );
+      
+      await Promise.all(updates);
+      setShowReorderModal(false);
+    } catch (error) {
+      console.error('Error reordering artists:', error);
+    }
+  }, [updateArtist]);
+
+  // Fonction corrigée pour le rendu des éléments
+  const renderArtistItem = useCallback((artist: Artist) => (
+    <div className="flex items-center gap-3 p-3 bg-gray-800/50 rounded-lg">
+      {artist.image_url && (
+        <img 
+          src={artist.image_url} 
+          alt={artist.name}
+          className="w-12 h-12 object-cover rounded-lg"
+        />
+      )}
+      <div className="flex-1">
+        <h3 className="font-medium text-white">{artist.name}</h3>
+        <p className="text-sm text-gray-400">{artist.latest_work}</p>
+      </div>
+    </div>
+  ), []);
 
   const tabs = [
     { id: 'list', label: 'Liste des Artistes', icon: Users },
@@ -297,13 +329,22 @@ const ArtistsAdmin = () => {
           >
             <div className="flex justify-between items-center">
               <h2 className="text-xl font-semibold text-white">Liste des Artistes</h2>
-              <button
-                onClick={handleNewArtist}
-                className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg"
-              >
-                <Plus className="w-4 h-4" />
-                Nouvel Artiste
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowReorderModal(true)}
+                  className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg"
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                  Réorganiser
+                </button>
+                <button
+                  onClick={handleNewArtist}
+                  className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg"
+                >
+                  <Plus className="w-4 h-4" />
+                  Nouvel Artiste
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -555,44 +596,19 @@ const ArtistsAdmin = () => {
         confirmText="Quitter"
         cancelText="Continuer l'édition"
       />
+
+      {/* Modal de réorganisation */}
+      <DragDropReorder
+        items={artists}
+        onReorder={handleReorderArtists}
+        renderItem={renderArtistItem}
+        getItemId={(artist) => artist.id}
+        title="les Artistes"
+        isOpen={showReorderModal}
+        onClose={() => setShowReorderModal(false)}
+      />
     </div>
   );
 };
 
 export default ArtistsAdmin;
-
-
-{/* Dans la section de la liste des artistes */}
-<div className="flex justify-between items-center">
-  <h2 className="text-xl font-semibold text-white">Liste des Artistes</h2>
-  <div className="flex gap-2">
-    <button
-      onClick={() => setShowReorderModal(true)}
-      className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg"
-    >
-      <ArrowUpDown className="w-4 h-4" />
-      Réorganiser
-    </button>
-    <button
-      onClick={handleNewArtist}
-      className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg"
-    >
-      <Plus className="w-4 h-4" />
-      Nouvel Artiste
-    </button>
-  </div>
-</div>
-
-{/* Modal de réorganisation */}
-<DragDropReorder
-  items={artists}
-  onReorder={handleReorderArtists}
-  renderItem={renderArtistItem}
-  getItemId={(artist) => artist.id}
-  title="les Artistes"
-  isOpen={showReorderModal}
-  onClose={() => setShowReorderModal(false)}
-/>
-</div>
-);
-};

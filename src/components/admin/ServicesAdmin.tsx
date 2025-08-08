@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from "react";
 import isEqual from "lodash/isEqual";
 import { motion } from "framer-motion";
-import ConfirmDialog from '../shared/ConfirmDialog'; // Ajouter cette importation
+import ConfirmDialog from '../shared/ConfirmDialog'; 
 
 interface Service {
   id: string;

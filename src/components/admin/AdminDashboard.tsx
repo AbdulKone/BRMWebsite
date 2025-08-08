@@ -25,7 +25,7 @@ const AdminDashboard = () => {
     fetchArtists();
     fetchServices();
     loadProspects();
-  }, []);
+  }, [fetchBookings, fetchMessages, fetchProjects, fetchArtists, fetchServices, loadProspects]);
 
   if (location.pathname === '/backstage') {
     return <Navigate to="/backstage/bookings" replace />;
@@ -89,6 +89,7 @@ const AdminDashboard = () => {
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               className="md:hidden p-2 rounded-md text-gray-300 hover:text-white hover:bg-gray-700 transition-colors"
+              aria-label="Toggle mobile menu"
             >
               {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
