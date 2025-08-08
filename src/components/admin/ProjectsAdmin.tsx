@@ -412,9 +412,7 @@ const ProjectsAdmin = () => {
                 <span>Nouveau Projet</span>
               </button>
             </div>
-
-                        // ... existing code ...
-            
+          
             {/* Liste des projets ou mode réorganisation */}
             {showReorderModal ? (
               <DragDropReorder
