@@ -1,0 +1,692 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "edfafe8f-9940-4f70-904b-3efedf0b44a0",
+      "name": "Déclencheur Quotidien",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -624,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "prospects",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id"
+            },
+            {
+              "keyName": "company_name"
+            },
+            {
+              "keyName": "email"
+            },
+            {
+              "keyName": "first_name"
+            },
+            {
+              "keyName": "last_name"
+            },
+            {
+              "keyName": "status"
+            },
+            {
+              "keyName": "lead_score"
+            },
+            {
+              "keyName": "segment_targeting"
+            },
+            {
+              "keyName": "enriched_data"
+            }
+          ]
+        }
+      },
+      "id": "8138ab11-3b2f-4be6-b2fe-a8386f590b77",
+      "name": "Récupérer Nouveaux Prospects",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -432,
+        -496
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "wQv8j6U2QItNATVy",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "operation": "larger",
+            "rightValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "condition-1",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "operation": "larger",
+                "type": "number"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c4dc557d-83fb-43cd-b643-103567c9d06e",
+      "name": "Vérifier Prospects",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        -256,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enrichissement automatique des prospects\nconst prospects = $input.all();\nconst enrichedProspects = [];\n\nfor (const prospect of prospects) {\n  const data = prospect.json;\n  \n  // Déterminer le segment basé sur les données\n  let segment = 'general';\n  let leadScore = 50;\n  \n  // Scoring intelligent\n  if (data.company_name) {\n    if (data.company_name.toLowerCase().includes('music') || \n        data.company_name.toLowerCase().includes('label') ||\n        data.company_name.toLowerCase().includes('studio')) {\n      segment = 'music_industry';\n      leadScore += 20;\n    } else if (data.company_name.toLowerCase().includes('luxury') ||\n               data.company_name.toLowerCase().includes('premium')) {\n      segment = 'luxury_brands';\n      leadScore += 25;\n    } else if (data.company_name.toLowerCase().includes('agency') ||\n               data.company_name.toLowerCase().includes('creative')) {\n      segment = 'creative_agencies';\n      leadScore += 15;\n    }\n  }\n  \n  // Enrichissement basé sur l'email\n  const emailDomain = data.email.split('@')[1];\n  if (emailDomain.includes('gmail') || emailDomain.includes('hotmail')) {\n    leadScore -= 10; // Emails personnels moins prioritaires\n  } else {\n    leadScore += 10; // Emails professionnels\n  }\n  \n  // Calcul probabilité de conversion\n  let conversionProbability = Math.min(leadScore / 100, 0.95);\n  \n  enrichedProspects.push({\n    ...data,\n    segment_targeting: [segment],\n    lead_score: leadScore,\n    conversion_probability: conversionProbability,\n    enriched_data: {\n      domain: emailDomain,\n      enriched_at: new Date().toISOString(),\n      auto_segmented: true\n    },\n    next_follow_up: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString() // +5 jours\n  });\n}\n\nreturn enrichedProspects;"
+      },
+      "id": "57bfd27a-ba8d-4ffc-b55e-4856bc8cc78e",
+      "name": "Enrichir Prospects",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        -480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sélection intelligente du template\nconst prospect = $json;\nlet templateKey = 'visual_intro_advertising'; // Template par défaut\n\n// Logique de sélection basée sur le segment\nif (prospect.segment_targeting && prospect.segment_targeting.length > 0) {\n  const segment = prospect.segment_targeting[0];\n  \n  switch (segment) {\n    case 'music_industry':\n      templateKey = 'music_video_intro';\n      break;\n    case 'luxury_brands':\n      templateKey = 'luxury_advertising_intro';\n      break;\n    case 'creative_agencies':\n      templateKey = 'detailed_video_proposal';\n      break;\n    default:\n      templateKey = 'visual_intro_advertising';\n  }\n}\n\n// Personnalisation basée sur le lead score\nif (prospect.lead_score > 80) {\n  // Prospects haute valeur : template premium\n  templateKey = 'luxury_advertising_intro';\n}\n\nreturn {\n  ...prospect,\n  selected_template: templateKey,\n  personalization_level: prospect.lead_score > 70 ? 'high' : 'standard'\n};"
+      },
+      "id": "e66d675d-2e33-4742-b6e8-bdbbafb1c507",
+      "name": "Sélectionner Template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        -448
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "email_templates"
+      },
+      "id": "15a4d9d0-c658-46ab-946c-fbd3a07f2031",
+      "name": "Récupérer Template",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        -464
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "wQv8j6U2QItNATVy",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compilation du template avec variables\nconst prospect = $('select-template').first().json;\nconst template = $json;\n\nif (!template || !template.content) {\n  throw new Error('Template non trouvé');\n}\n\n// Variables de base\nconst variables = {\n  contact_name: prospect.first_name || prospect.company_name.split(' ')[0] || 'Bonjour',\n  company_name: prospect.company_name,\n  sender_name: 'Karim - Black Road Music',\n  email: 'blackroadmusic@hotmail.com',\n  phone: '+33 X XX XX XX XX', // Remplacez par votre numéro\n  website: 'https://blackroadmusic.com',\n  portfolio_link: 'https://blackroadmusic.com/projets'\n};\n\n// Variables spécialisées par segment\nif (prospect.segment_targeting && prospect.segment_targeting.includes('music_industry')) {\n  variables.artist_name = prospect.company_name;\n  variables.label_examples = 'Universal Music, Warner, Sony Music';\n}\n\n// Compilation du contenu\nlet compiledContent = template.content;\nlet compiledSubject = template.subject;\n\n// Remplacement des variables\nfor (const [key, value] of Object.entries(variables)) {\n  const regex = new RegExp(`{{\\\\s*${key}\\\\s*}}`, 'g');\n  compiledContent = compiledContent.replace(regex, value);\n  compiledSubject = compiledSubject.replace(regex, value);\n}\n\n// Ajout du lien de désabonnement\nconst unsubscribeLink = `https://blackroadmusic.com/unsubscribe?id=${prospect.id}`;\ncompiledContent += `\\n\\n---\\n<small><a href=\"${unsubscribeLink}\">Se désabonner</a></small>`;\n\nreturn {\n  prospect_id: prospect.id,\n  prospect_email: prospect.email,\n  template_id: template.id,\n  subject: compiledSubject,\n  content: compiledContent,\n  campaign_id: 'auto-prospection-' + new Date().toISOString().split('T')[0]\n};"
+      },
+      "id": "db72b30f-91dd-4309-88d2-6bc469d331cd",
+      "name": "Compiler Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        -400
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://blackroadmusic.com/api/webhook-n8n",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"action\": \"send_email\",\n  \"data\": {\n    \"to\": \"{{ $json.prospect_email }}\",\n    \"subject\": \"{{ $json.subject }}\",\n    \"body\": \"{{ $json.content }}\",\n    \"templateId\": \"{{ $json.template_id }}\",\n    \"prospectId\": \"{{ $json.prospect_id }}\",\n    \"campaignId\": \"{{ $json.campaign_id }}\"\n  },\n  \"timestamp\": {{ Math.floor(Date.now() / 1000) }},\n  \"signature\": \"{{ $crypto.createHmac('sha256', $env.N8N_WEBHOOK_SECRET).update(JSON.stringify({action: 'send_email', data: {to: $json.prospect_email, subject: $json.subject, body: $json.content, templateId: $json.template_id, prospectId: $json.prospect_id, campaignId: $json.campaign_id}, timestamp: Math.floor(Date.now() / 1000)})).digest('hex') }}\"\n}",
+        "options": {}
+      },
+      "id": "704e4d33-6de5-40be-82cf-09a2ddcf17e7",
+      "name": "Envoyer Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1712,
+        -384
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database"
+      },
+      "id": "c5e2c79b-9981-47e3-b2c5-8db5e71156eb",
+      "name": "Mettre à Jour Statut",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1888,
+        -352
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "wQv8j6U2QItNATVy",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "id": "c7f80e6c-5366-4758-b6c6-c574eb990e91",
+      "name": "Déclencheur Relances",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        -448,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "database"
+      },
+      "id": "b4f53a3e-58e2-4ebc-9953-60ff0fa7af10",
+      "name": "Prospects à Relancer",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        -224,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Logique de relance intelligente\nconst prospects = $input.all();\nconst followUpProspects = [];\n\nfor (const prospect of prospects) {\n  const data = prospect.json;\n  \n  // Déterminer le type de relance\n  let followUpType = 'standard';\n  let templateKey = 'follow_up_sequence_1';\n  \n  // Calcul du nombre de jours depuis le dernier contact\n  const lastContact = new Date(data.last_contact_date);\n  const daysSinceContact = Math.floor((Date.now() - lastContact.getTime()) / (1000 * 60 * 60 * 24));\n  \n  if (daysSinceContact >= 14) {\n    followUpType = 'reactivation';\n    templateKey = 'reactivation_sequence_1';\n  } else if (data.lead_score > 70) {\n    followUpType = 'priority';\n    templateKey = 'priority_follow_up';\n  }\n  \n  followUpProspects.push({\n    ...data,\n    follow_up_type: followUpType,\n    selected_template: templateKey,\n    days_since_contact: daysSinceContact\n  });\n}\n\nreturn followUpProspects;"
+      },
+      "id": "356cecc2-67a6-49d6-96a0-03e3b82ba97f",
+      "name": "Traiter Relances",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        0,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "expression",
+        "numberOutputs": 5,
+        "output": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        176,
+        -480
+      ],
+      "id": "f84c1995-8763-4ff8-9407-26ffaa9754cf",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "prospects",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{$json.prospect_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "=status",
+              "fieldValue": "contacted"
+            },
+            {
+              "fieldId": "last_email_sent",
+              "fieldValue": "={{DateTime.now().toISO()}}"
+            },
+            {
+              "fieldId": "last_contact_date",
+              "fieldValue": "={{DateTime.now().toISO()}}"
+            },
+            {
+              "fieldId": "next_follow_up",
+              "fieldValue": "={{DateTime.now().plus({days: 5}).toISO()}}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{DateTime.now().toISO()}}"
+            }
+          ]
+        }
+      },
+      "id": "6f028da9-09d4-4b7d-a1a8-6a9d13cf0599",
+      "name": "Mettre à jour - Premier Email",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -640
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "wQv8j6U2QItNATVy",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "prospects",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{$json.prospect_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "=status",
+              "fieldValue": "interested"
+            },
+            {
+              "fieldId": "engagement_score",
+              "fieldValue": "={{$json.lead_score || 50}}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{DateTime.now().toISO()}}"
+            }
+          ]
+        }
+      },
+      "id": "741a2e16-531b-434e-9c0a-6cc55966a40a",
+      "name": "Mettre à jour - Email Ouvert",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        544,
+        -464
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "wQv8j6U2QItNATVy",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "prospects",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{$json.prospect_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "=status",
+              "fieldValue": "qualified"
+            },
+            {
+              "fieldId": "engagement_score",
+              "fieldValue": "={{($json.current_engagement_score || 0) + 50}}"
+            },
+            {
+              "fieldId": "lead_score",
+              "fieldValue": "={{($json.current_lead_score || 0) + 30}}"
+            },
+            {
+              "fieldId": "conversion_probability",
+              "fieldValue": "={{Math.min(($json.current_conversion_probability || 0) + 40, 100)}}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{DateTime.now().toISO()}}"
+            }
+          ]
+        }
+      },
+      "id": "351b6498-0cc1-4219-b78c-8bf524baa669",
+      "name": "Mettre à jour - Réponse Reçue",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -48
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "wQv8j6U2QItNATVy",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "prospects",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{$json.prospect_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "=status",
+              "fieldValue": "interested"
+            },
+            {
+              "fieldId": "engagement_score",
+              "fieldValue": "={{($json.current_engagement_score || 0) + 20}}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{DateTime.now().toISO()}}"
+            },
+            {
+              "fieldId": "lead_score",
+              "fieldValue": "={{($json.current_lead_score || 0) + 15}}"
+            }
+          ]
+        }
+      },
+      "id": "8e466b18-a243-4c00-a069-18d280bf8f6b",
+      "name": "Mettre à jour - Lien cliqué",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -272
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "wQv8j6U2QItNATVy",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "useCustomSchema": true,
+        "operation": "update",
+        "tableId": "prospects",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{$json.prospect_id}}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "last_email_sent",
+              "fieldValue": "={{DateTime.now().toISO()}}"
+            },
+            {
+              "fieldId": "last_contact_date",
+              "fieldValue": "={{DateTime.now().toISO()}}"
+            },
+            {
+              "fieldId": "next_follow_up",
+              "fieldValue": "={{DateTime.now().plus({days: 7}).toISO()}}"
+            },
+            {
+              "fieldId": "updated_at",
+              "fieldValue": "={{DateTime.now().toISO()}}"
+            }
+          ]
+        }
+      },
+      "id": "59300ce0-24bf-4aa1-ba78-458d367fc366",
+      "name": "Mettre à jour - Relance",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        560,
+        144
+      ],
+      "credentials": {
+        "supabaseApi": {
+          "id": "wQv8j6U2QItNATVy",
+          "name": "Supabase account"
+        }
+      }
+    }
+  ],
+  "pinData": {
+    "Récupérer Nouveaux Prospects": [
+      {
+        "json": {
+          "name": "First item",
+          "code": 1
+        }
+      },
+      {
+        "json": {
+          "name": "Second item",
+          "code": 2
+        }
+      }
+    ]
+  },
+  "connections": {
+    "Déclencheur Quotidien": {
+      "main": [
+        []
+      ]
+    },
+    "Récupérer Nouveaux Prospects": {
+      "main": [
+        []
+      ]
+    },
+    "Vérifier Prospects": {
+      "main": [
+        []
+      ]
+    },
+    "Enrichir Prospects": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sélectionner Template": {
+      "main": [
+        [
+          {
+            "node": "Récupérer Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Récupérer Template": {
+      "main": [
+        [
+          {
+            "node": "Compiler Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compiler Email": {
+      "main": [
+        []
+      ]
+    },
+    "Envoyer Email": {
+      "main": [
+        []
+      ]
+    },
+    "Déclencheur Relances": {
+      "main": [
+        []
+      ]
+    },
+    "Prospects à Relancer": {
+      "main": [
+        []
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "Mettre à jour - Premier Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mettre à jour - Email Ouvert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mettre à jour - Lien cliqué",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mettre à jour - Réponse Reçue",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mettre à jour - Relance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mettre à jour - Premier Email": {
+      "main": [
+        [
+          {
+            "node": "Sélectionner Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mettre à jour - Email Ouvert": {
+      "main": [
+        [
+          {
+            "node": "Sélectionner Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mettre à jour - Réponse Reçue": {
+      "main": [
+        [
+          {
+            "node": "Sélectionner Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mettre à jour - Relance": {
+      "main": [
+        [
+          {
+            "node": "Sélectionner Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mettre à jour - Lien cliqué": {
+      "main": [
+        [
+          {
+            "node": "Sélectionner Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "c0030114-7621-4ad7-8101-513f54110cd3",
+  "meta": {
+    "instanceId": "cb5332477d193c19327c623156cf1c62f06bc4b2eea6bf1e289b1f130c5e2730"
+  },
+  "id": "0UzzyLWgppLJdBXu",
+  "tags": []
+}
