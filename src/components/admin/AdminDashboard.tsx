@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAdminStore } from '../../stores/adminStore';
 import { useContentStore } from '../../stores/contentStore';
-import { useProspectionStore } from '../../stores/prospectionstore';
+import { useProspectionStore } from '../../stores/prospectionStore';
 import BookingsList from './BookingsList';
 import MessagesList from './MessagesList';
 import ProjectsAdmin from './ProjectsAdmin';
