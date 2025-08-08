@@ -5,6 +5,7 @@
 .env.development.local
 .env.test.local
 .env.production.local
+docker-compose.yml
 
 # Clés AWS
 *.pem
@@ -15,3 +16,4 @@ aws-credentials
 .aws/
 config.json
 secrets.json
+workflown8n.json

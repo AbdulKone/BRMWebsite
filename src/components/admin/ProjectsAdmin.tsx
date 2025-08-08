@@ -14,12 +14,24 @@ import {
   User,
   X,
   Upload,
-  CheckCircle
+  CheckCircle,
+  ArrowUpDown
 } from 'lucide-react';
 import ConfirmDialog from '../shared/ConfirmDialog';
+import DragDropReorder from './DragDropReorder';
 
 const ProjectsAdmin = () => {
-  const { projects, createProject, updateProject, deleteProject, isLoading, error } = useContentStore();
+  const { 
+    projects, 
+    createProject, 
+    updateProject, 
+    deleteProject, 
+    updateProjectOrder,
+    fetchProjects,
+    isLoading, 
+    error 
+  } = useContentStore();
+  
   const [activeTab, setActiveTab] = useState<'list' | 'form'>('list');
   const [editingProject, setEditingProject] = useState<string | null>(null);
   const [formData, setFormData] = useState<Partial<Project>>({});
@@ -30,6 +42,7 @@ const ProjectsAdmin = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
+  const [showReorderModal, setShowReorderModal] = useState(false);
 
   // Métriques calculées
   const metrics = useMemo(() => {
@@ -145,7 +158,7 @@ const ProjectsAdmin = () => {
   const handleEdit = (project: Project) => {
     setEditingProject(project.id);
     setFormData(project);
-    setImagePreview(null); // Reset preview when editing
+    setImagePreview(null);
     setActiveTab('form');
   };
 
@@ -197,6 +210,56 @@ const ProjectsAdmin = () => {
     setConfirmClose(false);
   };
 
+  // Fonction de réorganisation corrigée
+  const handleReorderProjects = async (reorderedProjects: Project[]) => {
+    try {
+      // Mettre à jour l'ordre dans la base de données
+      for (let i = 0; i < reorderedProjects.length; i++) {
+        const project = reorderedProjects[i];
+        const newOrder = i + 1;
+        if (project.display_order !== newOrder) {
+          await updateProjectOrder(project.id, newOrder);
+        }
+      }
+      // Rafraîchir la liste des projets
+      await fetchProjects();
+      setShowReorderModal(false); // Fermer la modale après réorganisation
+    } catch (error) {
+      console.error('Erreur lors de la réorganisation:', error);
+      setUploadError('Erreur lors de la réorganisation des projets');
+    }
+  };
+
+  // Fonction de rendu pour les éléments de projet dans le drag & drop
+  const renderProjectItem = (project: Project, index: number) => (
+    <div className="flex items-center gap-4">
+      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-700 flex-shrink-0">
+        {project.image_url ? (
+          <img 
+            src={project.image_url} 
+            alt={project.title}
+            className="w-full h-full object-cover"
+          />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-r from-purple-600 to-blue-600 flex items-center justify-center">
+            <span className="text-white text-xs font-bold">{project.title.charAt(0)}</span>
+          </div>
+        )}
+      </div>
+      <div className="flex-1">
+        <h3 className="text-white font-semibold">{project.title}</h3>
+        <p className="text-gray-400 text-sm">{project.artist} • {project.year}</p>
+        <span className={`inline-block px-2 py-1 rounded-full text-xs ${
+          project.type === 'music' 
+            ? 'bg-purple-500/20 text-purple-300' 
+            : 'bg-blue-500/20 text-blue-300'
+        }`}>
+          {project.type === 'music' ? 'Musique' : 'Vidéo'}
+        </span>
+      </div>
+    </div>
+  );
+  
   const tabs = [
     { id: 'list' as const, label: 'Liste des Projets', icon: FolderOpen },
     { id: 'form' as const, label: editingProject ? 'Modifier Projet' : 'Nouveau Projet', icon: Plus }
@@ -331,6 +394,14 @@ const ProjectsAdmin = () => {
                   <option value="music">Musique</option>
                   <option value="video">Vidéo</option>
                 </select>
+                
+                <button
+                  onClick={() => setShowReorderModal(true)} // Utiliser showReorderModal
+                  className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-gray-700/50 text-gray-300 hover:bg-gray-700 transition-all duration-200"
+                >
+                  <ArrowUpDown className="w-4 h-4" />
+                  <span>Réorganiser</span>
+                </button>
               </div>
               
               <button
@@ -342,77 +413,93 @@ const ProjectsAdmin = () => {
               </button>
             </div>
 
-            {/* Liste des projets */}
-            {filteredProjects.length === 0 ? (
-              <div className="text-center py-12">
-                <FolderOpen className="w-16 h-16 text-gray-600 mx-auto mb-4" />
-                <p className="text-gray-400 text-lg">Aucun projet trouvé</p>
-                <p className="text-gray-500 text-sm">Créez votre premier projet pour commencer</p>
-              </div>
+                        // ... existing code ...
+            
+            {/* Liste des projets ou mode réorganisation */}
+            {showReorderModal ? (
+              <DragDropReorder
+                items={filteredProjects}
+                onReorder={handleReorderProjects}
+                renderItem={renderProjectItem}
+                getItemId={(project: Project) => project.id}
+                title="Réorganiser les projets"
+                isOpen={showReorderModal}
+                onClose={() => setShowReorderModal(false)}
+              />
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredProjects.map((project) => (
-                  <motion.div
-                    key={project.id}
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all duration-300 group"
-                  >
-                    <div className="relative h-48 overflow-hidden">
-                      <img
-                        src={project.image_url}
-                        alt={project.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        onError={(e) => {
-                          const img = e.target as HTMLImageElement;
-                          img.src = 'https://placehold.co/600x400?text=Image+non+disponible';
-                        }}
-                      />
-                      <div className="absolute top-3 right-3">
-                        <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium ${
-                          project.type === 'music' 
-                            ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
-                            : 'bg-green-500/20 text-green-300 border border-green-500/30'
-                        }`}>
-                          {project.type === 'music' ? <Music className="w-3 h-3" /> : <Video className="w-3 h-3" />}
-                          <span>{project.type === 'music' ? 'Musique' : 'Vidéo'}</span>
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <div className="p-6">
-                      <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-300 transition-colors">
-                        {project.title}
-                      </h3>
-                      <div className="flex items-center space-x-2 text-gray-400 text-sm mb-3">
-                        <User className="w-4 h-4" />
-                        <span>{project.artist}</span>
-                        <span>•</span>
-                        <Calendar className="w-4 h-4" />
-                        <span>{project.year}</span>
-                      </div>
-                      <p className="text-gray-300 text-sm mb-4 line-clamp-2">{project.description}</p>
-                      
-                      <div className="flex items-center justify-end space-x-2">
-                        <button
-                          onClick={() => handleEdit(project)}
-                          className="p-2 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded-lg transition-all duration-200"
-                          title="Modifier"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(project.id)}
-                          className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all duration-200"
-                          title="Supprimer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+              <>
+                {filteredProjects.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FolderOpen className="w-16 h-16 text-gray-600 mx-auto mb-4" />
+                    <p className="text-gray-400 text-lg">Aucun projet trouvé</p>
+                    <p className="text-gray-500 text-sm">Créez votre premier projet pour commencer</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredProjects.map((project) => (
+                      <motion.div
+                        key={project.id}
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl overflow-hidden hover:border-purple-500/30 transition-all duration-300 group"
+                      >
+                        <div className="relative h-48 overflow-hidden">
+                          <img
+                            src={project.image_url}
+                            alt={project.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            onError={(e) => {
+                              const img = e.target as HTMLImageElement;
+                              img.src = 'https://placehold.co/600x400?text=Image+non+disponible';
+                            }}
+                          />
+                          <div className="absolute top-3 right-3">
+                            <span className={`inline-flex items-center space-x-1 px-3 py-1 rounded-full text-xs font-medium ${
+                              project.type === 'music' 
+                                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                : 'bg-green-500/20 text-green-300 border border-green-500/30'
+                            }`}>
+                              {project.type === 'music' ? <Music className="w-3 h-3" /> : <Video className="w-3 h-3" />}
+                              <span>{project.type === 'music' ? 'Musique' : 'Vidéo'}</span>
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="p-6">
+                          <h3 className="text-xl font-bold text-white mb-2 group-hover:text-purple-300 transition-colors">
+                            {project.title}
+                          </h3>
+                          <div className="flex items-center space-x-2 text-gray-400 text-sm mb-3">
+                            <User className="w-4 h-4" />
+                            <span>{project.artist}</span>
+                            <span>•</span>
+                            <Calendar className="w-4 h-4" />
+                            <span>{project.year}</span>
+                          </div>
+                          <p className="text-gray-300 text-sm mb-4 line-clamp-2">{project.description}</p>
+                          
+                          <div className="flex items-center justify-end space-x-2">
+                            <button
+                              onClick={() => handleEdit(project)}
+                              className="p-2 text-purple-400 hover:text-purple-300 hover:bg-purple-500/10 rounded-lg transition-all duration-200"
+                              title="Modifier"
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(project.id)}
+                              className="p-2 text-red-400 hover:text-red-300 hover:bg-red-500/10 rounded-lg transition-all duration-200"
+                              title="Supprimer"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </motion.div>
         )}
@@ -590,6 +677,7 @@ const ProjectsAdmin = () => {
         )}
       </div>
 
+      {/* Dialogues de confirmation */}
       <ConfirmDialog
         isOpen={deleteConfirmOpen}
         onClose={() => setDeleteConfirmOpen(false)}

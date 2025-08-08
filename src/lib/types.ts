@@ -30,8 +30,9 @@ export interface Service {
   title: string;
   description: string;
   icon: string;
-  price: string; // Ajout du champ price
+  price: string;
   features: string[];
+  display_order: number;
   created_at: string;
 }
 

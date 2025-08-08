@@ -18,9 +18,11 @@ import {
 } from 'lucide-react';
 import ConfirmDialog from '../shared/ConfirmDialog';
 import { validateImage } from '../../lib/security';
+import DragDropReorder from './DragDropReorder';
+import { ArrowUpDown } from 'lucide-react';
 
 const ArtistsAdmin = () => {
-  const { artists, createArtist, updateArtist, deleteArtist } = useContentStore();
+  const { artists, createArtist, updateArtist, deleteArtist, reorderItems } = useContentStore();
   const [activeTab, setActiveTab] = useState<'list' | 'form'>('list');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editingArtist, setEditingArtist] = useState<string | null>(null);
@@ -33,6 +35,7 @@ const ArtistsAdmin = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showReorderModal, setShowReorderModal] = useState(false);
 
   // Métriques calculées
   const totalArtists = artists.length;
@@ -557,3 +560,39 @@ const ArtistsAdmin = () => {
 };
 
 export default ArtistsAdmin;
+
+
+{/* Dans la section de la liste des artistes */}
+<div className="flex justify-between items-center">
+  <h2 className="text-xl font-semibold text-white">Liste des Artistes</h2>
+  <div className="flex gap-2">
+    <button
+      onClick={() => setShowReorderModal(true)}
+      className="flex items-center gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-indigo-700 hover:to-purple-700 transition-all duration-200 shadow-lg"
+    >
+      <ArrowUpDown className="w-4 h-4" />
+      Réorganiser
+    </button>
+    <button
+      onClick={handleNewArtist}
+      className="flex items-center gap-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg"
+    >
+      <Plus className="w-4 h-4" />
+      Nouvel Artiste
+    </button>
+  </div>
+</div>
+
+{/* Modal de réorganisation */}
+<DragDropReorder
+  items={artists}
+  onReorder={handleReorderArtists}
+  renderItem={renderArtistItem}
+  getItemId={(artist) => artist.id}
+  title="les Artistes"
+  isOpen={showReorderModal}
+  onClose={() => setShowReorderModal(false)}
+/>
+</div>
+);
+};

@@ -22,6 +22,13 @@ interface ContentStore {
   createService: (service: Omit<Service, 'id' | 'created_at'>) => Promise<void>;
   updateService: (id: string, service: Partial<Service>) => Promise<void>;
   deleteService: (id: string) => Promise<void>;
+  updateServiceOrder: (id: string, newOrder: number) => Promise<void>;
+  reorderItems: <T extends { id: string; display_order?: number }>(
+    items: T[],
+    startIndex: number,
+    endIndex: number,
+    updateFunction: (id: string, order: number) => Promise<void>
+  ) => Promise<T[]>;
 }
 
 export const useContentStore = create<ContentStore>((set, get) => ({
@@ -71,7 +78,7 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       const { data: services, error: servicesError } = await supabase
         .from('services')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('display_order', { ascending: true });
 
       if (servicesError) throw servicesError;
 
@@ -99,7 +106,6 @@ export const useContentStore = create<ContentStore>((set, get) => ({
   createProject: async (project) => {
     set({ isLoading: true, error: null });
     try {
-      // Get max display_order
       const { data: maxOrder } = await supabase
         .from('projects')
         .select('display_order')
@@ -176,7 +182,6 @@ export const useContentStore = create<ContentStore>((set, get) => ({
 
   createArtist: async (artist) => {
     try {
-      // Get max display_order
       const { data: maxOrder } = await supabase
         .from('artists')
         .select('display_order')
@@ -241,13 +246,23 @@ export const useContentStore = create<ContentStore>((set, get) => ({
 
   createService: async (service) => {
     try {
+      const { data: maxOrder } = await supabase
+        .from('services')
+        .select('display_order')
+        .order('display_order', { ascending: false })
+        .limit(1)
+        .single();
+
+      const newOrder = (maxOrder?.display_order || 0) + 1;
+
       const { data, error } = await supabase
         .from('services')
         .insert([{
           title: service.title,
           description: service.description,
           icon: service.icon,
-          price: service.price // Ajout du champ price
+          price: service.price,
+          display_order: newOrder
         }])
         .select()
         .single();
@@ -281,7 +296,7 @@ export const useContentStore = create<ContentStore>((set, get) => ({
           title: service.title,
           description: service.description,
           icon: service.icon,
-          price: service.price // Ajout du champ price
+          price: service.price
         })
         .eq('id', id);
 
@@ -325,5 +340,39 @@ export const useContentStore = create<ContentStore>((set, get) => ({
     } catch (error) {
       set({ error: (error as Error).message });
     }
+  },
+
+  updateServiceOrder: async (id: string, newOrder: number) => {
+    try {
+      const { error } = await supabase
+        .from('services')
+        .update({ display_order: newOrder })
+        .eq('id', id);
+
+      if (error) throw error;
+      await get().fetchServices();
+    } catch (error) {
+      set({ error: (error as Error).message });
+    }
+  },
+
+  reorderItems: async <T extends { id: string; display_order?: number }>(
+    items: T[],
+    startIndex: number,
+    endIndex: number,
+    updateFunction: (id: string, order: number) => Promise<void>
+  ) => {
+    const result = Array.from(items);
+    const [removed] = result.splice(startIndex, 1);
+    result.splice(endIndex, 0, removed);
+
+    // Mettre à jour l'ordre dans la base de données
+    for (let i = 0; i < result.length; i++) {
+      if (result[i].display_order !== i + 1) {
+        await updateFunction(result[i].id, i + 1);
+      }
+    }
+
+    return result;
   },
 }));
