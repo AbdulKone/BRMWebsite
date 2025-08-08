@@ -74,7 +74,7 @@ export const emailSequences: EmailSequence[] = [
     id: 'new_prospect_sequence',
     name: 'Séquence Nouveau Prospect - Projets Visuels',
     description: 'Séquence d\'introduction pour nouveaux prospects dans l\'audiovisuel',
-    targetSegment: ['visual_projects', 'advertising', 'film'],
+    targetSegment: ['advertising', 'music', 'luxury', 'sports'], // Segments mis à jour
     isActive: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -86,10 +86,10 @@ export const emailSequences: EmailSequence[] = [
     ]
   },
   {
-    id: 'interested_prospect_sequence',
+    id: 'interested_prospect_sequence', 
     name: 'Séquence Prospect Intéressé',
     description: 'Séquence pour prospects ayant montré de l\'intérêt',
-    targetSegment: ['interested', 'warm_lead'],
+    targetSegment: ['advertising', 'music', 'luxury', 'sports'], // Segments mis à jour
     isActive: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

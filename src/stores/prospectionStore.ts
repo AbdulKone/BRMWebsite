@@ -35,6 +35,7 @@ export interface EnrichedData {
     industry: string;
     revenue?: string;
     website?: string;
+    location?: string;
     social_media?: {
       linkedin?: string;
       instagram?: string;
@@ -94,6 +95,13 @@ interface ProspectionState {
     avg_response_time: number;
     pipeline_value: number;
     monthly_growth: number;
+    segment_breakdown?: {
+      advertising: number;
+      music: number;
+      luxury: number;
+      sports: number;
+    };
+    qualified_prospects?: number;
   };
   loading: boolean;
   error: string | null;
@@ -118,14 +126,45 @@ interface ProspectionActions {
   trackEmailEngagement: (prospectId: string, action: 'open' | 'click' | 'reply') => Promise<void>;
 }
 
-// Constantes pour les segments par défaut
+// Segments par défaut
 const DEFAULT_SEGMENTS: ProspectSegment[] = [
   {
-    id: 'enterprise',
-    name: 'Grandes Entreprises',
+    id: 'music_industry',
+    name: 'Industrie Musicale',
     criteria: {
-      company_size: 'large',
+      industry: ['music', 'entertainment'],
+      project_type: ['music_video', 'concert', 'documentary']
+    },
+    email_frequency: 5,
+    conversion_rate: 0.35
+  },
+  {
+    id: 'luxury_brands',
+    name: 'Marques de Luxe',
+    criteria: {
+      industry: ['luxury', 'fashion', 'jewelry'],
       budget_range: 'high',
+      project_type: ['commercial', 'brand_content']
+    },
+    email_frequency: 7,
+    conversion_rate: 0.28
+  },
+  {
+    id: 'sports_marketing',
+    name: 'Marketing Sportif',
+    criteria: {
+      industry: ['sports', 'fitness'],
+      project_type: ['commercial', 'event_coverage']
+    },
+    email_frequency: 4,
+    conversion_rate: 0.22
+  },
+  {
+    id: 'advertising_agencies',
+    name: 'Agences de Publicité',
+    criteria: {
+      industry: ['advertising', 'marketing'],
+      company_size: 'medium',
       project_type: ['commercial', 'corporate']
     },
     email_frequency: 7,
@@ -236,35 +275,44 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
 
     const factors = {
       engagement: (prospect.engagement_score || 0) * 2,
-      company_fit: prospect.enriched_data?.company_info?.size === 'large' ? 30 : 15,
-      budget_potential: (prospect.enriched_data?.project_history?.avg_budget || 0) > 10000 ? 25 : 10,
-      urgency: 15,
-      response_history: (prospect.engagement_score || 0) * 0.5
+      company_fit: prospect.segment_targeting?.length ? 20 : 5,
+      budget_potential: prospect.enriched_data?.company_info?.size === 'large' ? 25 : 10,
+      urgency: prospect.status === 'interested' ? 20 : 10,
+      response_history: prospect.last_contact_date ? 15 : 0
     };
 
     const total = Object.values(factors).reduce((sum, score) => sum + score, 0);
-    
+
     const detailedScore: DetailedLeadScore = {
-      total,
+      total: Math.min(total, 100),
       factors,
       last_calculated: new Date().toISOString()
     };
 
-    await get().saveProspect({ id: prospectId, lead_score: total });
-    
+    // Mettre à jour le prospect avec le nouveau score
+    await get().saveProspect({ 
+      id: prospectId, 
+      lead_score: detailedScore.total 
+    });
+
     return detailedScore;
   },
 
   updateProspectSegment: async (prospectId: string, segmentId: string) => {
-    await get().saveProspect({ id: prospectId, segment_targeting: [segmentId] });
+    const segment = get().segments.find(s => s.id === segmentId);
+    if (!segment) throw new Error('Segment non trouvé');
+
+    await get().saveProspect({ 
+      id: prospectId, 
+      segment_targeting: [segmentId] 
+    });
   },
 
   scheduleFollowUp: async (prospectId: string, date: string, type: string) => {
-    const prospect = get().prospects.find(p => p.id === prospectId);
     await get().saveProspect({ 
-      id: prospectId,
+      id: prospectId, 
       next_follow_up: date,
-      notes: `${prospect?.notes || ''} [Follow-up ${type} prévu le ${date}]`
+      notes: `Suivi programmé: ${type} le ${new Date(date).toLocaleDateString('fr-FR')}`
     });
   },
 
@@ -274,29 +322,58 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
     );
   },
 
-  getHighValueProspects: (threshold = 70) => {
-    return get().prospects.filter(p => (p.lead_score || 0) >= threshold);
+  getHighValueProspects: (threshold: number = 70) => {
+    return get().prospects.filter(p => 
+      (p.lead_score || 0) >= threshold
+    );
   },
 
   loadMetrics: async () => {
     try {
       const prospects = get().prospects;
+      
+      const segmentMetrics = {
+        advertising: prospects.filter(p => p.segment_targeting?.includes('advertising')).length,
+        music: prospects.filter(p => p.segment_targeting?.includes('music')).length,
+        luxury: prospects.filter(p => p.segment_targeting?.includes('luxury')).length,
+        sports: prospects.filter(p => p.segment_targeting?.includes('sports')).length
+      };
+      
+      // Calculs de performance réels
       const totalProspects = prospects.length;
+      const qualifiedProspects = prospects.filter(p => (p.lead_score || 0) >= 60).length;
       const wonProspects = prospects.filter(p => p.status === 'closed_won').length;
       const conversionRate = totalProspects > 0 ? wonProspects / totalProspects : 0;
       
+      // Croissance mensuelle réelle
       const lastMonth = new Date();
       lastMonth.setMonth(lastMonth.getMonth() - 1);
       const recentProspects = prospects.filter(p => new Date(p.created_at) > lastMonth).length;
       const monthlyGrowth = totalProspects > 0 ? recentProspects / totalProspects : 0;
-
+      
+      // Valeur pipeline basée sur les segments
+      const pipelineValue = prospects.reduce((total, prospect) => {
+        const segment = prospect.segment_targeting?.[0] || 'general';
+        const baseValue = {
+          music: 8000,
+          advertising: 12000,
+          luxury: 15000,
+          sports: 10000,
+          general: 5000
+        }[segment] || 5000;
+        
+        return total + (baseValue * (prospect.lead_score || 0) / 100);
+      }, 0);
+  
       set({
         metrics: {
           total_prospects: totalProspects,
           conversion_rate: conversionRate,
           avg_response_time: 24,
-          pipeline_value: prospects.length * 5000,
-          monthly_growth: monthlyGrowth
+          pipeline_value: Math.round(pipelineValue),
+          monthly_growth: monthlyGrowth,
+          segment_breakdown: segmentMetrics,
+          qualified_prospects: qualifiedProspects
         }
       });
     } catch (error) {
@@ -305,20 +382,38 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
   },
 
   enrichProspectData: async (prospectId: string): Promise<EnrichedData> => {
+    // Récupérer les vraies données depuis la base
+    const { data: prospect, error } = await supabase
+      .from('prospects')
+      .select('*')
+      .eq('id', prospectId)
+      .single();
+  
+    if (error || !prospect) {
+      throw new Error('Prospect non trouvé');
+    }
+  
+    // Utiliser les données réelles du workflow n8n
     const enrichedData: EnrichedData = {
       company_info: {
-        size: 'medium',
-        industry: 'technology',
-        website: 'https://example.com'
+        size: prospect.enriched_data?.company_info?.size || 'unknown',
+        industry: prospect.enriched_data?.company_info?.industry || 'unknown',
+        location: prospect.enriched_data?.company_info?.location || 'France',
+        website: prospect.website || prospect.enriched_data?.company_info?.website
       },
       contact_info: {
-        role: 'Marketing Director',
-        seniority_level: 'senior',
-        decision_maker: true
+        role: prospect.position || 'Contact',
+        seniority_level: 'unknown',
+        decision_maker: (prospect.lead_score || 0) > 70
       }
     };
-
-    await get().saveProspect({ id: prospectId, enriched_data: enrichedData });
+  
+    // Mettre à jour le prospect avec les données enrichies
+    await get().saveProspect({ 
+      id: prospectId, 
+      enriched_data: enrichedData 
+    });
+  
     return enrichedData;
   },
 
@@ -330,7 +425,7 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
         .in('id', prospectIds);
 
       if (error) throw error;
-      
+
       set(state => ({
         prospects: state.prospects.map(p => 
           prospectIds.includes(p.id) ? { ...p, status } : p
@@ -343,25 +438,32 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
 
   getOptimalContactTime: async (prospectId: string): Promise<string> => {
     const prospect = get().prospects.find(p => p.id === prospectId);
-    
-    if (prospect?.segment_targeting?.includes('enterprise')) {
-      return '09:00';
-    } else if (prospect?.segment_targeting?.includes('startups')) {
-      return '14:00';
-    }
-    return '10:00';
+    if (!prospect) throw new Error('Prospect non trouvé');
+
+    // Logique simple basée sur le segment
+    const segment = prospect.segment_targeting?.[0];
+    const optimalTimes = {
+      music: '14:00', // Après-midi pour l'industrie musicale
+      luxury: '10:00', // Matinée pour le luxe
+      sports: '16:00', // Fin d'après-midi pour le sport
+      advertising: '11:00' // Milieu de matinée pour la pub
+    };
+
+    return optimalTimes[segment as keyof typeof optimalTimes] || '10:00';
   },
 
   trackEmailEngagement: async (prospectId: string, action: 'open' | 'click' | 'reply') => {
     const prospect = get().prospects.find(p => p.id === prospectId);
     if (!prospect) return;
 
-    const engagementBoost = ENGAGEMENT_BOOST[action];
-    const newEngagementScore = (prospect.engagement_score || 0) + engagementBoost;
+    const currentScore = prospect.engagement_score || 0;
+    const boost = ENGAGEMENT_BOOST[action];
+    const newScore = Math.min(currentScore + boost, 100);
 
     await get().saveProspect({ 
       id: prospectId, 
-      engagement_score: newEngagementScore 
+      engagement_score: newScore,
+      last_contact_date: new Date().toISOString()
     });
   }
 }));

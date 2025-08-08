@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: n8n-brm-prospection
+    restart: unless-stopped
+    ports:
+      - "5678:5678"
+    environment:
+      # Authentification
+      - N8N_BASIC_AUTH_ACTIVE=true
+      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+      
+      # Configuration réseau
+      - N8N_HOST=localhost
+      - N8N_PORT=5678
+      - N8N_PROTOCOL=http
+      - WEBHOOK_URL=http://localhost:5678/
+      
+      # Sécurité (utilise votre secret existant)
+      - N8N_WEBHOOK_SECRET=${N8N_WEBHOOK_SECRET}
+      
+      # Base de données
+      - DB_TYPE=sqlite
+      - DB_SQLITE_DATABASE=/home/node/.n8n/database.sqlite
+      
+      # Configuration générale
+      - GENERIC_TIMEZONE=Europe/Paris
+      - N8N_LOG_LEVEL=info
+      - N8N_METRICS=true
+      
+      # Intégration avec votre app
+      - N8N_PAYLOAD_SIZE_MAX=16
+      - N8N_BINARY_DATA_TTL=60
+      
+      # Variables pour vos workflows
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_ROLE_KEY=${SUPABASE_SERVICE_ROLE_KEY}
+      - APP_WEBHOOK_URL=https://blackroadmusic.com/api/webhook-n8n
+      
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./workflown8n:/tmp/workflows:ro
+      - ./n8n-backups:/home/node/backups
+    networks:
+      - n8n_network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:5678/healthz || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  n8n_data:
+    driver: local
+
+networks:
+  n8n_network:
+    driver: bridge
