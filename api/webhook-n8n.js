@@ -181,95 +181,94 @@ async function handleStartSequence(data, res) {
 }
 
 // Fonction pour suivre l'engagement (ouvertures, clics)
-// Dans votre fonction handleTrackEngagement
 async function handleTrackEngagement(data, res) {
   const { prospectId, action, emailId } = data;
   
-  // Envoyer à n8n avec le contexte approprié
-  const webhookData = {
-    prospect_id: prospectId,
-    action: action, // 'email_opened', 'email_clicked', etc.
-    email_id: emailId,
-    timestamp: new Date().toISOString(),
-    // Récupérer les données actuelles du prospect
-    current_engagement_score: prospect.engagement_score,
-    current_lead_score: prospect.lead_score,
-    current_conversion_probability: prospect.conversion_probability
-  };
-  
-  // Déclencher le workflow n8n approprié
-  await triggerN8nWorkflow('update-prospect-context', webhookData);
-}
-
-if (!prospectId || !action) {
-  return res.status(400).json({ 
-    success: false, 
-    error: 'Données manquantes: prospectId, action' 
-  });
-}
-
-try {
-  const prospect = await supabase
-    .from('prospects')
-    .select('*')
-    .eq('id', prospectId)
-    .single();
-  
-  if (!prospect.data) {
-    return res.status(404).json({ success: false, error: 'Prospect non trouvé' });
+  if (!prospectId || !action) {
+    return res.status(400).json({ 
+      success: false, 
+      error: 'Données manquantes: prospectId, action' 
+    });
   }
-  
-  const updates = {};
-  
-  if (action === 'open') {
-    updates.email_opens = (prospect.data.email_opens || 0) + 1;
-    
-    // Mettre à jour le statut de l'email si un ID est fourni
-    if (emailId) {
-      await supabase
-        .from('email_tracking')
-        .update({ 
-          email_status: 'opened',
-          opened_at: new Date().toISOString() 
-        })
-        .eq('id', emailId);
-    }
-  } else if (action === 'click') {
-    updates.email_clicks = (prospect.data.email_clicks || 0) + 1;
-    
-    if (emailId) {
-      await supabase
-        .from('email_tracking')
-        .update({ 
-          email_status: 'clicked',
-          clicked_at: new Date().toISOString() 
-        })
-        .eq('id', emailId);
-    }
-  } else if (action === 'reply') {
-    if (emailId) {
-      await supabase
-        .from('email_tracking')
-        .update({ 
-          email_status: 'replied',
-          responded_at: new Date().toISOString() 
-        })
-        .eq('id', emailId);
-    }
-  }
-  
-  // Mettre à jour le prospect
-  if (Object.keys(updates).length > 0) {
-    await supabase
+
+  try {
+    const prospect = await supabase
       .from('prospects')
-      .update(updates)
-      .eq('id', prospectId);
+      .select('*')
+      .eq('id', prospectId)
+      .single();
+    
+    if (!prospect.data) {
+      return res.status(404).json({ success: false, error: 'Prospect non trouvé' });
+    }
+    
+    const updates = {};
+    
+    if (action === 'open') {
+      updates.email_opens = (prospect.data.email_opens || 0) + 1;
+      
+      // Mettre à jour le statut de l'email si un ID est fourni
+      if (emailId) {
+        await supabase
+          .from('email_tracking')
+          .update({ 
+            email_status: 'opened',
+            opened_at: new Date().toISOString() 
+          })
+          .eq('id', emailId);
+      }
+    } else if (action === 'click') {
+      updates.email_clicks = (prospect.data.email_clicks || 0) + 1;
+      
+      if (emailId) {
+        await supabase
+          .from('email_tracking')
+          .update({ 
+            email_status: 'clicked',
+            clicked_at: new Date().toISOString() 
+          })
+          .eq('id', emailId);
+      }
+    } else if (action === 'reply') {
+      if (emailId) {
+        await supabase
+          .from('email_tracking')
+          .update({ 
+            email_status: 'replied',
+            responded_at: new Date().toISOString() 
+          })
+          .eq('id', emailId);
+      }
+    }
+    
+    // Mettre à jour le prospect
+    if (Object.keys(updates).length > 0) {
+      await supabase
+        .from('prospects')
+        .update(updates)
+        .eq('id', prospectId);
+    }
+
+    // Envoyer à n8n avec le contexte approprié
+    const webhookData = {
+      prospect_id: prospectId,
+      action: action,
+      email_id: emailId,
+      timestamp: new Date().toISOString(),
+      current_engagement_score: prospect.data.engagement_score,
+      current_lead_score: prospect.data.lead_score,
+      current_conversion_probability: prospect.data.conversion_probability
+    };
+    
+    // Déclencher le workflow n8n approprié
+    await triggerN8nWorkflow('update-prospect-context', webhookData);
+    
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    const clientIP = req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    await logWebhookAccess(false, clientIP, action, error.message);
+    return res.status(500).json({ success: false, error: error.message });
   }
-  
-  return res.status(200).json({ success: true });
-} catch (error) {
-  await logWebhookAccess(false, clientIP, req.body?.action, error.message);
-  return res.status(500).json({ success: false, error: error.message });
 }
 
 // Nouvelles fonctions pour gérer l'automatisation
