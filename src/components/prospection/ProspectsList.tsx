@@ -1,6 +1,8 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useProspectionStore } from '../../stores/prospectionStore';
+import { useErrorStore } from '../../stores/errorStore';
 import { Search, Filter, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
+
 
 interface ProspectsListProps {
   onViewDetails?: (prospectId: string) => void;
@@ -24,6 +26,7 @@ const STATUS_CONFIG = {
 
 const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: ProspectsListProps) => {
   const { prospects, loading, error, deleteProspect } = useProspectionStore();
+  const { handleError, handleSuccess } = useErrorStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusType>('all');
   const [currentPage, setCurrentPage] = useState(1);
@@ -34,16 +37,16 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
     if (window.confirm(`Êtes-vous sûr de vouloir supprimer ${companyName} ?`)) {
       try {
         await deleteProspect(prospectId);
+        handleSuccess(`${companyName} supprimé avec succès`);
         const newTotalPages = Math.ceil((prospects.length - 1) / itemsPerPage);
         if (currentPage > newTotalPages && newTotalPages > 0) {
           setCurrentPage(newTotalPages);
         }
       } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
-        alert('Erreur lors de la suppression du prospect');
+        handleError(error instanceof Error ? error.message : 'Erreur lors de la suppression du prospect');
       }
     }
-  }, [deleteProspect, prospects.length, itemsPerPage, currentPage]);
+  }, [deleteProspect, prospects.length, itemsPerPage, currentPage, handleError, handleSuccess]);
 
   // Filtrage optimisé
   const filteredProspects = useMemo(() => {

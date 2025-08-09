@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { useErrorStore } from '../../stores/errorStore';
 
 interface UnsubscribeManagerProps {
   onSuccess?: () => void;
@@ -8,10 +9,11 @@ interface UnsubscribeManagerProps {
 }
 
 const UnsubscribeManager = ({ onSuccess, onError }: UnsubscribeManagerProps) => {
+  const { handleError, handleSuccess } = useErrorStore();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [localError, setLocalError] = useState<string | null>(null);
   
   const prospectId = searchParams.get('prospect');
   const campaignId = searchParams.get('campaign');
@@ -19,13 +21,14 @@ const UnsubscribeManager = ({ onSuccess, onError }: UnsubscribeManagerProps) => 
   const handleUnsubscribe = useCallback(async () => {
     if (!prospectId) {
       const errorMsg = 'Paramètres manquants pour le désabonnement';
-      setError(errorMsg);
+      handleError(errorMsg);
+      setLocalError(errorMsg);
       onError?.(errorMsg);
       return;
     }
 
     setLoading(true);
-    setError(null);
+    setLocalError(null);
 
     try {
       // Vérifier que le prospect existe
@@ -68,31 +71,33 @@ const UnsubscribeManager = ({ onSuccess, onError }: UnsubscribeManagerProps) => 
         });
 
       if (trackingError) {
-        console.warn('Erreur lors de l\'enregistrement du tracking:', trackingError);
+        handleError(trackingError, 'Avertissement lors de l\'enregistrement du tracking');
         // Ne pas faire échouer le processus si le tracking échoue
       }
 
       setSuccess(true);
+      handleSuccess('Désabonnement effectué avec succès');
       onSuccess?.();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors du désabonnement';
-      setError(errorMessage);
+      handleError(errorMessage);
+      setLocalError(errorMessage);
       onError?.(errorMessage);
     } finally {
       setLoading(false);
     }
-  }, [prospectId, campaignId, onSuccess, onError]);
+  }, [prospectId, campaignId, onSuccess, onError, handleError, handleSuccess]);
 
   const handleRetry = useCallback(() => {
-    setError(null);
+    setLocalError(null);
     handleUnsubscribe();
   }, [handleUnsubscribe]);
 
   useEffect(() => {
-    if (prospectId && !success && !loading) {
+    if (prospectId && !success && !loading && !localError) {
       handleUnsubscribe();
     }
-  }, [prospectId, success, loading, handleUnsubscribe]);
+  }, [prospectId, success, loading, localError, handleUnsubscribe]);
 
   if (loading) {
     return (
@@ -127,7 +132,7 @@ const UnsubscribeManager = ({ onSuccess, onError }: UnsubscribeManagerProps) => 
     );
   }
 
-  if (error) {
+  if (localError) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="max-w-md mx-auto text-center p-8 bg-white rounded-lg shadow-lg">
@@ -137,7 +142,7 @@ const UnsubscribeManager = ({ onSuccess, onError }: UnsubscribeManagerProps) => 
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Erreur</h1>
-          <p className="text-gray-600 mb-6">{error}</p>
+          <p className="text-gray-600 mb-6">{localError}</p>
           <div className="space-y-2">
             <button 
               onClick={handleRetry}

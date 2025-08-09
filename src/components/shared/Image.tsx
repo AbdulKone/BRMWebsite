@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useErrorStore } from '../../stores/errorStore';
 
-interface ImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+interface ImageProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 
+  'onAnimationStart' | 'onAnimationEnd' | 'onDragStart' | 'onDrag' | 'onDragEnd'> {
   fallbackSrc?: string;
   loadingComponent?: React.ReactNode;
   onLoad?: () => void;
@@ -21,6 +23,7 @@ const Image = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [imgSrc, setImgSrc] = useState(src);
+  const { handleError: handleErrorStore } = useErrorStore();
 
   useEffect(() => {
     setImgSrc(src);
@@ -29,19 +32,16 @@ const Image = ({
   }, [src]);
 
   const handleLoad = () => {
-    console.log(`Image loaded successfully: ${src}`);
     setLoading(false);
     setError(false);
     externalOnLoad?.();
   };
 
   const handleError = () => {
-    console.error(`Failed to load image: ${src}`, {
-      originalSrc: src,
-      fallbackSrc,
-      alt,
-      timestamp: new Date().toISOString()
-    });
+    handleErrorStore(
+      'Erreur de chargement d\'image',
+      `Impossible de charger l'image: ${src}. Source originale: ${src}, Fallback: ${fallbackSrc}, Alt: ${alt}`
+    );
     
     setLoading(false);
     setError(true);

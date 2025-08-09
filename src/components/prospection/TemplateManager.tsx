@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Plus, Edit, Trash2, Eye, X, Save, AlertCircle, FileText, Copy } from 'lucide-react';
+import { useErrorStore } from '../../stores/errorStore';
 
 interface TemplateFormData {
   id?: string;
@@ -50,6 +51,8 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
   editingTemplateId: externalEditingTemplateId,
   onCloseForm
 }) => {
+  const { handleError, handleWarning } = useErrorStore();
+  
   const [internalActiveTab, setInternalActiveTab] = useState<TemplateTab>('list');
   const [internalEditingTemplateId, setInternalEditingTemplateId] = useState<string | null>(null);
   
@@ -57,13 +60,14 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
   const activeTab = externalActiveTab || internalActiveTab;
   const editingTemplateId = externalEditingTemplateId || internalEditingTemplateId;
   
-  const handleTabChange = useCallback((tab: TemplateTab) => {
-    if (onTabChange) {
-      onTabChange(tab);
-    } else {
-      setInternalActiveTab(tab);
-    }
-  }, [onTabChange]);
+  // Supprimer cette fonction si elle n'est pas utilisée
+  // const handleTabChange = useCallback((tab: TemplateTab) => {
+  //   if (onTabChange) {
+  //     onTabChange(tab);
+  //   } else {
+  //     setInternalActiveTab(tab);
+  //   }
+  // }, [onTabChange]);
   
   const handleEditTemplate = useCallback((templateId: string) => {
     if (onTabChange) {
@@ -73,7 +77,7 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
       setInternalEditingTemplateId(templateId);
       setInternalActiveTab('form');
     }
-  }, [onTabChange]);
+  }, [onTabChange]); // Retirer handleTabChange des dépendances
   
   const handleAddTemplate = useCallback(() => {
     if (onTabChange) {
@@ -82,7 +86,7 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
       setInternalEditingTemplateId(null);
       setInternalActiveTab('form');
     }
-  }, [onTabChange]);
+  }, [onTabChange]); // Retirer handleTabChange des dépendances
   
   const handleCloseForm = useCallback(() => {
     if (onCloseForm) {
@@ -91,11 +95,11 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
       setInternalEditingTemplateId(null);
       setInternalActiveTab('list');
     }
-  }, [onCloseForm]);
+  }, [onCloseForm]); // Retirer handleTabChange des dépendances
 
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Suppression de: const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
@@ -124,12 +128,11 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
       if (error) throw error;
       setTemplates(data || []);
     } catch (err) {
-      console.error('Erreur lors du chargement des templates:', err);
-      setError('Erreur lors du chargement des templates');
+      handleError(err, 'Erreur lors du chargement des templates');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [handleError]);
 
   useEffect(() => {
     loadTemplates();
@@ -251,13 +254,14 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
   // Sauvegarder le template
   const handleSaveTemplate = useCallback(async () => {
     if (!formData.name.trim() || !formData.subject.trim() || !formData.content.trim()) {
-      setError('Veuillez remplir tous les champs obligatoires');
+      handleWarning('Veuillez remplir tous les champs obligatoires');
+      // Suppression de: setError('Veuillez remplir tous les champs obligatoires');
       return;
     }
 
     try {
       setSaving(true);
-      setError(null);
+      // Suppression de: setError(null);
 
       const templateData = {
         name: formData.name.trim(),
@@ -280,23 +284,25 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
           .eq('id', editingTemplateId);
         
         if (error) throw error;
+        handleError('Template mis à jour avec succès');
       } else {
         const { error } = await supabase
           .from('email_templates')
           .insert([templateData]);
         
         if (error) throw error;
+        handleError('Template créé avec succès');
       }
 
       await loadTemplates();
       handleCloseForm();
     } catch (err) {
-      console.error('Erreur lors de la sauvegarde:', err);
-      setError('Erreur lors de la sauvegarde du template');
+      handleError('Erreur lors de la sauvegarde du template', err instanceof Error ? err.message : 'Erreur inconnue');
+      // Suppression de: setError('Erreur lors de la sauvegarde du template');
     } finally {
       setSaving(false);
     }
-  }, [formData, editingTemplateId, loadTemplates, handleCloseForm]);
+  }, [formData, editingTemplateId, loadTemplates, handleCloseForm, handleError]);
 
   // Supprimer un template
   const handleDeleteTemplate = useCallback(async (templateId: string, templateName: string) => {
@@ -312,11 +318,12 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
 
       if (error) throw error;
       await loadTemplates();
+      handleError(`Template "${templateName}" supprimé avec succès`);
     } catch (err) {
-      console.error('Erreur lors de la suppression:', err);
-      setError('Erreur lors de la suppression du template');
+      handleError('Erreur lors de la suppression du template', err instanceof Error ? err.message : 'Erreur inconnue');
+      // Suppression de: setError('Erreur lors de la suppression du template');
     }
-  }, [loadTemplates]);
+  }, [loadTemplates, handleError]);
 
   // Dupliquer un template
   const handleDuplicateTemplate = useCallback(async (template: EmailTemplate) => {
@@ -341,11 +348,12 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
 
       if (error) throw error;
       await loadTemplates();
+      handleError('Template dupliqué avec succès');
     } catch (err) {
-      console.error('Erreur lors de la duplication:', err);
-      setError('Erreur lors de la duplication du template');
+      handleError('Erreur lors de la duplication du template', err instanceof Error ? err.message : 'Erreur inconnue');
+      // Suppression de: setError('Erreur lors de la duplication du template');
     }
-  }, [loadTemplates]);
+  }, [loadTemplates, handleError]);
 
   // Aperçu d'un template
   const handlePreviewTemplate = useCallback((template: EmailTemplate) => {
@@ -391,15 +399,7 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
             <span>Nouveau Template</span>
           </button>
         </div>
-
-        {/* Message d'erreur avec design cohérent */}
-        {error && (
-          <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
-            <span className="text-red-300">{error}</span>
-          </div>
-        )}
-
+        
         {/* Liste des templates avec design sombre */}
         <div className="grid gap-4">
           {filteredTemplates.map((template) => (
@@ -585,12 +585,13 @@ const TemplateManager: React.FC<TemplateManagerProps> = ({
         </div>
 
         {/* Message d'erreur */}
-        {error && (
+        {/* Suppression complète du bloc d'erreur car géré par les toasts */}
+        {/* {error && (
           <div className="bg-red-900/20 border border-red-500/30 rounded-xl p-4 flex items-center gap-3">
             <AlertCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
             <span className="text-red-300">{error}</span>
           </div>
-        )}
+        )} */}
 
         {/* Formulaire */}
         <div className="bg-gray-800/50 backdrop-blur-sm border border-gray-700/50 rounded-2xl p-6 sm:p-8">

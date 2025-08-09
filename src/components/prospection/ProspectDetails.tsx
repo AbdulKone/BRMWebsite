@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useProspectionStore } from '../../stores/prospectionStore';
+import { useErrorStore } from '../../stores/errorStore';
 import { supabase } from '../../lib/supabase';
 import { emailSequences, startEmailSequence, stopEmailSequence } from '../../data/emailSequences';
 import { 
@@ -64,6 +65,7 @@ const EMAIL_STATUS_COLORS = {
 
 const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) => {
   const { prospects, saveProspect, calculateDetailedLeadScore, enrichProspectData } = useProspectionStore();
+  const { handleError } = useErrorStore();
   const [emailHistory, setEmailHistory] = useState<EmailTracking[]>([]);
   const [prospectMetrics, setProspectMetrics] = useState<ProspectMetrics | null>(null);
   const [activeSequences, setActiveSequences] = useState<string[]>([]);
@@ -115,11 +117,11 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
       if (error) throw error;
       setEmailHistory(data || []);
     } catch (error) {
-      console.error('Erreur lors du chargement de l\'historique:', error);
+      handleError('Erreur lors du chargement de l\'historique des emails', error instanceof Error ? error.message : 'Erreur inconnue');
     } finally {
       setIsLoadingHistory(false);
     }
-  }, [prospectId]);
+  }, [prospectId, handleError]);
 
   const calculateMetrics = useCallback(async (emailData: EmailTracking[]) => {
     const emailsSent = emailData.length;
@@ -180,9 +182,9 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
         setProspectMetrics(metrics);
       }
     } catch (error) {
-      console.error('Erreur lors du calcul des métriques:', error);
+      handleError('Erreur lors du calcul des métriques', error instanceof Error ? error.message : 'Erreur inconnue');
     }
-  }, [prospectId, calculateMetrics]);
+  }, [prospectId, calculateMetrics, handleError]);
 
   const loadActiveSequences = useCallback(async () => {
     try {
@@ -196,19 +198,21 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
       const sequences = [...new Set(data?.map(d => d.sequence_id) || [])];
       setActiveSequences(sequences);
     } catch (error) {
-      console.error('Erreur lors du chargement des séquences actives:', error);
+      handleError('Erreur lors du chargement des séquences actives', error instanceof Error ? error.message : 'Erreur inconnue');
+      // Suppression de: console.error('Erreur lors du chargement des séquences actives:', error);
     }
-  }, [prospectId]);
+  }, [prospectId, handleError]);
 
   const enrichProspectIfNeeded = useCallback(async () => {
     if (prospect && !prospect.enriched_data) {
       try {
         await enrichProspectData(prospectId);
       } catch (error) {
-        console.error('Erreur lors de l\'enrichissement:', error);
+        handleError('Erreur lors de l\'enrichissement du prospect', error instanceof Error ? error.message : 'Erreur inconnue');
+        // Suppression de: console.error('Erreur lors de l\'enrichissement:', error);
       }
     }
-  }, [prospect, prospectId, enrichProspectData]);
+  }, [prospect, prospectId, enrichProspectData, handleError]);
 
   const handleStatusChange = useCallback(async (status: string) => {
     try {
@@ -219,9 +223,10 @@ const ProspectDetails = ({ prospectId, onClose, onEdit }: ProspectDetailsProps) 
       });
       loadProspectMetrics();
     } catch (error) {
-      console.error('Erreur lors de la mise à jour du statut:', error);
+      handleError('Erreur lors de la mise à jour du statut', error instanceof Error ? error.message : 'Erreur inconnue');
+      // Suppression de: console.error('Erreur lors de la mise à jour du statut:', error);
     }
-  }, [prospectId, saveProspect, loadProspectMetrics]);
+  }, [prospectId, saveProspect, loadProspectMetrics, handleError]);
 
   const handleAddNote = useCallback(async () => {
     if (!newNote.trim()) return;

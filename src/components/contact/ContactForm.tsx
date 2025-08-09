@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { supabase } from '../../lib/supabase';
-import { checkRateLimit, generateCSRFToken } from '../../lib/security';
+import { useErrorStore } from '../../stores/errorStore';
 
 interface FormData {
   name: string;
@@ -15,7 +15,7 @@ const ContactForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const { handleError, handleSuccess } = useErrorStore();
   
   const {
     register,
@@ -26,12 +26,11 @@ const ContactForm = () => {
 
   const onSubmit = async (data: FormData) => {
     if (!captchaValue) {
-      alert('Veuillez confirmer que vous n\'êtes pas un robot');
+      handleError('Veuillez confirmer que vous n\'êtes pas un robot');
       return;
     }
 
     setIsSubmitting(true);
-    setError(null);
     
     try {
       const { error: submitError } = await supabase
@@ -49,9 +48,9 @@ const ContactForm = () => {
       setIsSubmitted(true);
       reset();
       setCaptchaValue(null);
+      handleSuccess('Votre message a été envoyé avec succès !');
     } catch (err) {
-      setError('Une erreur est survenue lors de l\'envoi du message. Veuillez réessayer.');
-      console.error('Error submitting message:', err);
+      handleError(err, 'Erreur lors de l\'envoi du message');
     } finally {
       setIsSubmitting(false);
     }
@@ -92,12 +91,6 @@ const ContactForm = () => {
         </div>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-          {error && (
-            <div className="bg-red-500/20 text-red-400 p-4 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
           <div>
             <label
               htmlFor="name"

@@ -1,3 +1,7 @@
+import { useErrorStore } from '../stores/errorStore';
+
+const { handleError } = useErrorStore.getState();
+
 export const sendEmailViaBackend = async ({
   to,
   subject,
@@ -36,7 +40,7 @@ export const sendEmailViaBackend = async ({
     const result = await response.json();
     return result;
   } catch (error) {
-    console.error('Erreur envoi email via backend:', error);
+    handleError(error, 'Erreur lors de l\'envoi de l\'email via le backend');
     return { success: false, error };
   }
 };

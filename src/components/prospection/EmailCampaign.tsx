@@ -2,19 +2,43 @@ import { useState, useEffect } from 'react';
 import { useProspectionStore } from '../../stores/prospectionStore';
 import { supabase } from '../../lib/supabase';
 import { EmailTemplate } from '../../data/types/emailTypes';
+import { useErrorStore, errorUtils } from '../../stores/errorStore';
 
-// Fonction pour obtenir le nom de contact
-const getContactName = (prospect: any) => {
+// Types
+interface SendResult {
+  success: boolean;
+  error?: string;
+  messageId?: string;
+}
+
+interface EmailVariables {
+  contact_name: string;
+  sender_name: string;
+  company_name: string;
+  project_name: string;
+  unsubscribe_link: string;
+}
+
+interface CompiledEmail {
+  subject: string;
+  content: string;
+}
+
+// Utilitaires
+const getContactName = (prospect: any): string => {
   const fullName = `${prospect.first_name || ''} ${prospect.last_name || ''}`.trim();
   return fullName || prospect.company_name;
 };
 
-// Fonction pour compiler un template avec les variables
-const compileTemplate = (template: EmailTemplate, variables: Record<string, string>): { subject: string; content: string } => {
+const isValidEmail = (email: string): boolean => {
+  if (!email) return false;
+  return email.includes('@') && email.includes('.');
+};
+
+const compileTemplate = (template: EmailTemplate, variables: EmailVariables): CompiledEmail => {
   let compiledSubject = template.subject;
   let compiledContent = template.content;
 
-  // Remplacer les variables dans le sujet et le contenu
   Object.entries(variables).forEach(([key, value]) => {
     const regex = new RegExp(`{{${key}}}`, 'g');
     compiledSubject = compiledSubject.replace(regex, value);
@@ -27,118 +51,238 @@ const compileTemplate = (template: EmailTemplate, variables: Record<string, stri
   };
 };
 
-// Fonction pour générer le lien de désinscription
 const generateUnsubscribeLink = (prospectId: string): string => {
   return `${window.location.origin}/unsubscribe?id=${prospectId}`;
 };
 
-// Fonction pour envoyer via Vercel + SES
-const sendEmailViaVercel = async ({
-  to,
-  subject,
-  body,
-  templateId,
-  prospectId,
-  campaignId
-}: {
-  to: string;
-  subject: string;
-  body: string;
-  templateId: string;
-  prospectId: string;
-  campaignId: string;
-}) => {
-  try {
-    const response = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+const generateEmailVariables = (prospect: any): EmailVariables => ({
+  contact_name: getContactName(prospect),
+  sender_name: 'Black Road Music',
+  company_name: prospect.company_name || '',
+  project_name: 'Votre Projet',
+  unsubscribe_link: generateUnsubscribeLink(prospect.id)
+});
+
+// Service d'envoi d'email
+class EmailService {
+  static async sendEmail({
+    to,
+    subject,
+    body,
+    templateId,
+    prospectId,
+    campaignId
+  }: {
+    to: string;
+    subject: string;
+    body: string;
+    templateId: string;
+    prospectId: string;
+    campaignId: string;
+  }): Promise<SendResult> {
+    return await errorUtils.withErrorHandling(
+      async () => {
+        const response = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            to,
+            subject,
+            body,
+            templateId,
+            prospectId,
+            campaignId
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.success) {
+          // Enregistrer le tracking
+          await this.saveEmailTracking({
+            prospectId,
+            templateId,
+            campaignId,
+            subject,
+            messageId: result.messageId
+          });
+
+          // Mettre à jour le prospect
+          await this.updateProspectStatus(prospectId);
+        }
+        
+        return result;
       },
-      body: JSON.stringify({
-        to,
-        subject,
-        body,
-        templateId,
-        prospectId,
-        campaignId
-      })
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const result = await response.json();
-    
-    if (result.success) {
-      // Enregistrer le tracking dans Supabase
-      await supabase.from('email_tracking').insert({
-        prospect_id: prospectId,
-        template_id: templateId,
-        campaign_id: campaignId,
-        email_status: 'sent',
-        sent_at: new Date().toISOString(),
-        subject: subject,
-        message_id: result.messageId
-      });
-
-      // Mettre à jour le prospect
-      await supabase.from('prospects')
-        .update({ 
-          last_email_sent: new Date().toISOString(),
-          status: 'contacted'
-        })
-        .eq('id', prospectId);
-    }
-    
-    return result;
-  } catch (error) {
-    console.error('Erreur envoi email via Vercel:', error);
-    return { success: false, error };
+      `Erreur lors de l'envoi de l'email`
+    ) || { success: false, error: 'Erreur inconnue' };
   }
-};
 
-const EmailCampaign = () => {
-  const { prospects } = useProspectionStore();
+  private static async saveEmailTracking({
+    prospectId,
+    templateId,
+    campaignId,
+    subject,
+    messageId
+  }: {
+    prospectId: string;
+    templateId: string;
+    campaignId: string;
+    subject: string;
+    messageId: string;
+  }): Promise<void> {
+    await supabase.from('email_tracking').insert({
+      prospect_id: prospectId,
+      template_id: templateId,
+      campaign_id: campaignId,
+      email_status: 'sent',
+      sent_at: new Date().toISOString(),
+      subject: subject,
+      message_id: messageId
+    });
+  }
+
+  private static async updateProspectStatus(prospectId: string): Promise<void> {
+    await supabase.from('prospects')
+      .update({ 
+        last_email_sent: new Date().toISOString(),
+        status: 'contacted'
+      })
+      .eq('id', prospectId);
+  }
+}
+
+// Hook personnalisé pour la gestion des templates
+const useEmailTemplates = () => {
   const [templates, setTemplates] = useState<EmailTemplate[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState('');
-  const [selectedProspects, setSelectedProspects] = useState<string[]>([]);
-  const [previewEmail, setPreviewEmail] = useState<{ subject: string; body: string } | null>(null);
-  const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [sendResults, setSendResults] = useState<{ success: number; failed: number }>({ success: 0, failed: 0 });
 
-  // Charger les templates depuis la base de données
-  useEffect(() => {
-    const loadTemplates = async () => {
-      try {
-        setLoading(true);
+  const loadTemplates = async () => {
+    const result = await errorUtils.withErrorHandling(
+      async () => {
         const { data, error } = await supabase
           .from('email_templates')
           .select('*')
           .eq('is_active', true)
           .order('priority', { ascending: false })
           .order('name');
+  
+        if (error) throw error;
+        // Ensure is_active is properly typed as boolean
+        return (data || []).map(template => ({
+          ...template,
+          is_active: Boolean(template.is_active)
+        })) as EmailTemplate[];
+      },
+      'Erreur lors du chargement des templates'
+    );
+  
+    if (result) {
+      setTemplates(result);
+    }
+    setLoading(false);
+  };
 
-        if (error) {
-          console.error('Erreur lors du chargement des templates:', error);
-          return;
-        }
-
-        setTemplates(data || []);
-      } catch (error) {
-        console.error('Erreur lors du chargement des templates:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
+  useEffect(() => {
     loadTemplates();
   }, []);
 
   const getTemplate = (templateKey: string): EmailTemplate | undefined => {
     return templates.find(t => t.template_key === templateKey && t.is_active);
   };
+
+  return { templates, loading, getTemplate };
+};
+
+// Hook pour la gestion de l'envoi d'emails
+const useEmailSender = () => {
+  const [sending, setSending] = useState(false);
+  const [sendResults, setSendResults] = useState<{ success: number; failed: number }>({ success: 0, failed: 0 });
+  const { handleSuccess, handleError } = useErrorStore.getState();
+
+  const sendEmailToProspect = async (
+    prospect: any,
+    template: EmailTemplate,
+    campaignId: string
+  ): Promise<boolean> => {
+    if (!isValidEmail(prospect.email)) {
+      handleError(
+        new Error('Email invalide'),
+        `Email invalide pour ${getContactName(prospect)}`
+      );
+      return false;
+    }
+
+    const variables = generateEmailVariables(prospect);
+    const compiledEmail = compileTemplate(template, variables);
+
+    const result = await EmailService.sendEmail({
+      to: prospect.email,
+      subject: compiledEmail.subject,
+      body: compiledEmail.content,
+      templateId: template.template_key,
+      prospectId: prospect.id,
+      campaignId
+    });
+
+    if (result.success) {
+      handleSuccess(`Email envoyé avec succès à ${getContactName(prospect)}`);
+      return true;
+    } else {
+      handleError(
+        new Error(result.error || 'Erreur inconnue'),
+        `Échec envoi email pour ${getContactName(prospect)}`
+      );
+      return false;
+    }
+  };
+
+  const sendBulkEmails = async (
+    prospects: any[],
+    template: EmailTemplate
+  ): Promise<void> => {
+    setSending(true);
+    setSendResults({ success: 0, failed: 0 });
+    
+    const campaignId = `campaign_${Date.now()}`;
+
+    for (const prospect of prospects) {
+      const success = await sendEmailToProspect(prospect, template, campaignId);
+      
+      setSendResults(prev => ({
+        success: prev.success + (success ? 1 : 0),
+        failed: prev.failed + (success ? 0 : 1)
+      }));
+    }
+
+    setSending(false);
+  };
+
+  return {
+    sending,
+    sendResults,
+    sendBulkEmails
+  };
+};
+
+// Composant principal
+const EmailCampaign = () => {
+  const { prospects } = useProspectionStore();
+  const { templates, loading, getTemplate } = useEmailTemplates();
+  const { sending, sendResults, sendBulkEmails } = useEmailSender();
+  
+  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [selectedProspects, setSelectedProspects] = useState<string[]>([]);
+  const [previewEmail, setPreviewEmail] = useState<CompiledEmail | null>(null);
+
+  const availableProspects = prospects.filter(p => 
+    p.status === 'new' || p.status === 'contacted' || p.status === 'interested'
+  );
 
   const handlePreview = () => {
     const template = getTemplate(selectedTemplate);
@@ -147,76 +291,28 @@ const EmailCampaign = () => {
     const prospect = prospects.find(p => p.id === selectedProspects[0]);
     if (!prospect) return;
 
-    const unsubscribeLink = generateUnsubscribeLink(prospect.id);
-    const compiledEmail = compileTemplate(template, {
-      contact_name: getContactName(prospect),
-      sender_name: 'Black Road Music',
-      company_name: prospect.company_name || '',
-      project_name: 'Votre Projet',
-      unsubscribe_link: unsubscribeLink
-    });
-
-    setPreviewEmail({
-      subject: compiledEmail.subject,
-      body: compiledEmail.content
-    });
+    const variables = generateEmailVariables(prospect);
+    const compiledEmail = compileTemplate(template, variables);
+    setPreviewEmail(compiledEmail);
   };
 
   const handleSend = async () => {
     const template = getTemplate(selectedTemplate);
     if (!template) return;
 
-    setSending(true);
-    setSendResults({ success: 0, failed: 0 });
-    
-    const campaignId = `campaign_${Date.now()}`;
+    const selectedProspectObjects = prospects.filter(p => 
+      selectedProspects.includes(p.id)
+    );
 
-    try {
-      for (const prospectId of selectedProspects) {
-        const prospect = prospects.find(p => p.id === prospectId);
-        if (!prospect) continue;
+    await sendBulkEmails(selectedProspectObjects, template);
+  };
 
-        try {
-          // Validation de l'email
-          if (!prospect.email || !prospect.email.includes('@')) {
-            console.error('Email invalide pour:', getContactName(prospect));
-            setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
-            continue;
-          }
-
-          const unsubscribeLink = generateUnsubscribeLink(prospect.id);
-          const compiledEmail = compileTemplate(template, {
-            contact_name: getContactName(prospect),
-            sender_name: 'Black Road Music',
-            company_name: prospect.company_name || '',
-            project_name: 'Votre Projet',
-            unsubscribe_link: unsubscribeLink
-          });
-
-          // Envoi via Vercel + SES
-          const result = await sendEmailViaVercel({
-            to: prospect.email,
-            subject: compiledEmail.subject,
-            body: compiledEmail.content,
-            templateId: template.template_key,
-            prospectId: prospect.id,
-            campaignId
-          });
-
-          if (result.success) {
-            setSendResults(prev => ({ ...prev, success: prev.success + 1 }));
-          } else {
-            console.error('Échec envoi email pour:', getContactName(prospect), result.error);
-            setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
-          }
-        } catch (error) {
-          console.error('Erreur envoi email pour:', getContactName(prospect), error);
-          setSendResults(prev => ({ ...prev, failed: prev.failed + 1 }));
-        }
-      }
-    } finally {
-      setSending(false);
-    }
+  const toggleProspectSelection = (prospectId: string) => {
+    setSelectedProspects(prev => 
+      prev.includes(prospectId)
+        ? prev.filter(id => id !== prospectId)
+        : [...prev, prospectId]
+    );
   };
 
   if (loading) {
@@ -259,18 +355,12 @@ const EmailCampaign = () => {
           Sélectionner les prospects ({selectedProspects.length} sélectionnés)
         </label>
         <div className="max-h-60 overflow-y-auto border border-gray-300 rounded-lg">
-          {prospects.filter(p => p.status === 'new' || p.status === 'contacted' || p.status === 'interested').map(prospect => (
+          {availableProspects.map(prospect => (
             <label key={prospect.id} className="flex items-center p-3 hover:bg-gray-50 cursor-pointer">
               <input
                 type="checkbox"
                 checked={selectedProspects.includes(prospect.id)}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    setSelectedProspects([...selectedProspects, prospect.id]);
-                  } else {
-                    setSelectedProspects(selectedProspects.filter(id => id !== prospect.id));
-                  }
-                }}
+                onChange={() => toggleProspectSelection(prospect.id)}
                 className="mr-3"
               />
               <div>
@@ -322,7 +412,7 @@ const EmailCampaign = () => {
             <div className="mb-2">
               <strong>Sujet :</strong> {previewEmail.subject}
             </div>
-            <div className="whitespace-pre-wrap text-sm text-black">{previewEmail.body}</div>
+            <div className="whitespace-pre-wrap text-sm text-black">{previewEmail.content}</div>
           </div>
         </div>
       )}

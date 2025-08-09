@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useContentStore } from '../../stores/contentStore';
+import { useErrorStore } from '../../stores/errorStore';
 import { Artist } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { 
@@ -22,6 +23,7 @@ import { ArrowUpDown } from 'lucide-react';
 
 const ArtistsAdmin = () => {
   const { artists, createArtist, updateArtist, deleteArtist } = useContentStore();
+  const { handleError, handleSuccess } = useErrorStore();
   const [activeTab, setActiveTab] = useState<'list' | 'form'>('list');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editingArtist, setEditingArtist] = useState<string | null>(null);
@@ -30,7 +32,7 @@ const ArtistsAdmin = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [artistToDelete, setArtistToDelete] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Suppression de: const [uploadError, setUploadError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -51,12 +53,13 @@ const ArtistsAdmin = () => {
       
       const error = validateImage(file);
       if (error) {
-        setUploadError(error);
+        // Remplacement de: setUploadError(error);
+        handleError(error);
         return;
       }
 
       setSelectedFile(file);
-      setUploadError(null);
+      // Suppression de: setUploadError(null);
 
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -67,9 +70,8 @@ const ArtistsAdmin = () => {
   };
 
   const uploadImage = async (file: File): Promise<string> => {
+    setIsUploading(true);
     try {
-      setIsUploading(true);
-      
       const timestamp = Date.now();
       const randomString = Math.random().toString(36).substring(2, 15);
       const fileExt = file.name.split('.').pop()?.toLowerCase();
@@ -85,7 +87,6 @@ const ArtistsAdmin = () => {
         });
 
       if (uploadError) {
-        console.error('Upload error:', uploadError);
         throw new Error("Erreur lors de l'upload de l'image");
       }
 
@@ -95,7 +96,7 @@ const ArtistsAdmin = () => {
 
       return publicUrl;
     } catch (error) {
-      console.error('Upload error:', error);
+      handleError(error, "Erreur lors de l'upload de l'image");
       throw new Error("Erreur lors de l'upload de l'image");
     } finally {
       setIsUploading(false);
@@ -104,7 +105,7 @@ const ArtistsAdmin = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setUploadError(null);
+    // Suppression de: setUploadError(null);
 
     try {
       if (!formData.name || !formData.description || !formData.latest_work || !formData.release_date) {
@@ -126,15 +127,17 @@ const ArtistsAdmin = () => {
 
       if (editingArtist) {
         await updateArtist(editingArtist, artistData);
+        handleSuccess('Artiste mis à jour avec succès');
       } else {
         await createArtist(artistData);
+        handleSuccess('Artiste créé avec succès');
       }
 
       resetForm();
       setActiveTab('list');
     } catch (error) {
-      console.error('Error saving artist:', error);
-      setUploadError(error instanceof Error ? error.message : "Erreur lors de la sauvegarde");
+      handleError(error, 'Erreur lors de la sauvegarde de l\'artiste');
+      // Suppression de: setUploadError(error instanceof Error ? error.message : "Erreur lors de la sauvegarde");
     }
   };
 
@@ -165,7 +168,7 @@ const ArtistsAdmin = () => {
     setImagePreview(null);
     setEditingArtist(null);
     setIsEditing(false);
-    setUploadError(null);
+    // Suppression de: setUploadError(null);
   };
 
   const handleNewArtist = () => {
@@ -176,17 +179,17 @@ const ArtistsAdmin = () => {
   // Fonction corrigée pour la réorganisation
   const handleReorderArtists = useCallback(async (reorderedArtists: Artist[]) => {
     try {
-      // Mettre à jour l'ordre d'affichage pour chaque artiste
       const updates = reorderedArtists.map((artist, index) => 
         updateArtist(artist.id, { display_order: index })
       );
       
       await Promise.all(updates);
       setShowReorderModal(false);
+      handleSuccess('Ordre des artistes mis à jour avec succès');
     } catch (error) {
-      console.error('Error reordering artists:', error);
+      handleError(error, 'Erreur lors de la réorganisation des artistes');
     }
-  }, [updateArtist]);
+  }, [updateArtist, handleError, handleSuccess]);
 
   // Fonction corrigée pour le rendu des éléments
   const renderArtistItem = useCallback((artist: Artist) => (
@@ -438,11 +441,7 @@ const ArtistsAdmin = () => {
                 </button>
               </div>
 
-              {uploadError && (
-                <div className="bg-red-600/20 border border-red-500/50 text-red-400 px-4 py-3 rounded-lg mb-6">
-                  {uploadError}
-                </div>
-              )}
+              {/* Suppression du bloc d'affichage d'erreur uploadError */}
 
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

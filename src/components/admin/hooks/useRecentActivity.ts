@@ -1,10 +1,12 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import type { RecentActivity, EmailTrackingData } from '../types/automationTypes';
+import { useErrorStore } from '../../../stores/errorStore';
 
 export function useRecentActivity() {
   const [activities, setActivities] = useState<RecentActivity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const { handleError } = useErrorStore();
 
   const refreshActivities = useCallback(async () => {
     try {
@@ -83,11 +85,12 @@ export function useRecentActivity() {
       activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
       setActivities(activities.slice(0, 10));
     } catch (error) {
-      console.error('Erreur lors de la récupération des activités:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
+      handleError('Erreur lors de la récupération des activités récentes', errorMessage);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [handleError]);
 
   return { activities, isLoading, refreshActivities };
 }

@@ -3,23 +3,17 @@ import { fr } from 'date-fns/locale';
 import { useState, useMemo } from 'react';
 import { Trash2, MessageCircle, Mail, MailOpen, Reply, Clock, User } from 'lucide-react';
 import { useAdminStore } from '../../stores/adminStore';
+import { useErrorStore } from '../../stores/errorStore';
 import Pagination from '../shared/Pagination';
 import ConfirmDialog from '../shared/ConfirmDialog';
 
 const MessagesList = () => {
   const { messages, updateMessageStatus, deleteMessage, isLoading, pagination, setPagination, fetchMessages } = useAdminStore();
+  const { handleSuccess } = useErrorStore();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [messageToDelete, setMessageToDelete] = useState<string | null>(null);
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [expandedMessage, setExpandedMessage] = useState<string | null>(null);
-
-  // Log de débogage pour identifier le problème
-  console.log('📋 État du store MessagesList:', { 
-    messages, 
-    messagesLength: messages?.length || 0,
-    isLoading, 
-    pagination,
-  });
 
   const getStatusConfig = (status: string) => {
     switch (status) {
@@ -83,6 +77,11 @@ const MessagesList = () => {
 
   const toggleExpanded = (messageId: string) => {
     setExpandedMessage(expandedMessage === messageId ? null : messageId);
+  };
+
+  const handleRefreshMessages = () => {
+    handleSuccess('Messages rechargés');
+    fetchMessages();
   };
 
   const totalPages = Math.ceil(pagination.total / pagination.pageSize);
@@ -170,7 +169,7 @@ const MessagesList = () => {
             </div>
           </div>
 
-          {/* Filtres et bouton de débogage */}
+          {/* Filtres et bouton de rechargement */}
           <div className="flex flex-wrap gap-4 mb-6">
             <select
               value={filterStatus}
@@ -183,12 +182,8 @@ const MessagesList = () => {
               <option value="replied">Répondus</option>
             </select>
             
-            {/* Bouton de débogage */}
             <button
-              onClick={() => {
-                console.log('🔄 Rechargement manuel des messages');
-                fetchMessages();
-              }}
+              onClick={handleRefreshMessages}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors"
             >
               🔄 Recharger les messages
@@ -280,7 +275,6 @@ const MessagesList = () => {
             <MessageCircle className="w-16 h-16 text-gray-600 mx-auto mb-4" />
             <p className="text-gray-400 text-lg">Aucun message trouvé</p>
             <p className="text-gray-500 text-sm">Les messages de contact apparaîtront ici</p>
-            <p className="text-gray-500 text-xs mt-2">Debug: {messages.length} messages dans le store</p>
           </div>
         )}
 

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useProspectionStore } from '../../stores/prospectionStore';
+import { useErrorStore } from '../../stores/errorStore';
 import { X, Building, User, Mail, Globe, Linkedin, FileText, Tag } from 'lucide-react';
 
 interface ProspectFormProps {
@@ -35,6 +36,7 @@ interface FormData {
 
 const ProspectForm = ({ prospectId, onClose }: ProspectFormProps) => {
   const { saveProspect, prospects } = useProspectionStore();
+  const { handleError, handleSuccess } = useErrorStore();
   const [formData, setFormData] = useState<FormData>({
     company_name: '',
     first_name: '',
@@ -169,18 +171,20 @@ const ProspectForm = ({ prospectId, onClose }: ProspectFormProps) => {
   
       if (prospectId) {
         await saveProspect({ id: prospectId, ...trimmedData });
+        handleSuccess('Prospect modifié avec succès');
       } else {
         await saveProspect(trimmedData);
+        handleSuccess('Prospect ajouté avec succès');
       }
   
       onClose();
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
+      handleError('Erreur lors de la sauvegarde du prospect', error instanceof Error ? error.message : 'Erreur inconnue');
       setErrors({ general: 'Erreur lors de la sauvegarde du prospect' });
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, validateForm, prospectId, saveProspect, onClose]);
+  }, [formData, validateForm, prospectId, saveProspect, onClose, handleError, handleSuccess]);
 
   const handleCancel = useCallback(() => {
     if (isSubmitting) return;

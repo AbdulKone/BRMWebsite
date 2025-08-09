@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
 import { GripVertical, Save, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useErrorStore } from '../../stores/errorStore';
 
 interface DragDropReorderProps<T> {
   items: T[];
@@ -25,6 +26,7 @@ function DragDropReorder<T>({
   const [reorderedItems, setReorderedItems] = useState<T[]>(items);
   const [isLoading, setIsLoading] = useState(false);
   const [hasChanges, setHasChanges] = useState(false);
+  const { handleError, handleSuccess } = useErrorStore();
 
   React.useEffect(() => {
     setReorderedItems(items);
@@ -47,9 +49,10 @@ function DragDropReorder<T>({
     try {
       await onReorder(reorderedItems);
       setHasChanges(false);
+      handleSuccess('Ordre mis à jour avec succès');
       onClose();
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
+      handleError(error, 'Erreur lors de la sauvegarde de l\'ordre');
     } finally {
       setIsLoading(false);
     }

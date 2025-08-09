@@ -7,7 +7,8 @@ import { Lock } from 'lucide-react';
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const { signIn, isAuthenticated, isAdmin, isLoading, error } = useAuthStore();
+  // Suppression de: error
+  const { signIn, isAuthenticated, isAdmin, isLoading } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -50,11 +51,7 @@ const LoginPage = () => {
           </div>
 
           <form onSubmit={handleSubmit} className="bg-primary-900 rounded-xl p-8 space-y-6">
-            {error && (
-              <div className="bg-red-500/20 text-red-400 p-4 rounded-lg">
-                {error}
-              </div>
-            )}
+            {/* Suppression du bloc d'affichage d'erreur */}
 
             <div>
               <label className="block text-sm font-medium text-gray-300 mb-2">

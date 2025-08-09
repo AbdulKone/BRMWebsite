@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { EmailTemplate } from './types/emailTypes';
+import { useErrorStore } from '../stores/errorStore';
 
 // Fonctions utilitaires
 const generateUnsubscribeLink = (prospectId: string): string => 
@@ -17,7 +18,8 @@ const getTemplate = async (templateKey: string): Promise<EmailTemplate | null> =
     .single();
 
   if (error) {
-    console.error('Erreur lors de la récupération du template:', error);
+    const { handleError } = useErrorStore.getState();
+    handleError('Erreur lors de la récupération du template', error.message);
     return null;
   }
   return data;
@@ -139,7 +141,8 @@ export const processScheduledEmails = async (): Promise<void> => {
       try {
         await sendScheduledEmail(scheduledEmail);
       } catch (error) {
-        console.error('Erreur envoi email programmé:', error);
+        const { handleError } = useErrorStore.getState();
+        handleError('Erreur lors de l\'envoi d\'email programmé', error instanceof Error ? error.message : 'Erreur inconnue');
         await supabase
           .from('scheduled_emails')
           .update({

@@ -1,6 +1,9 @@
 // First install the AWS SDK SES client:
 // npm install @aws-sdk/client-ses
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
+import { useErrorStore } from '../stores/errorStore';
+
+const { handleError } = useErrorStore.getState();
 
 const ses = new SESClient({
   region: import.meta.env.VITE_AWS_REGION,
@@ -26,7 +29,8 @@ export const sendEmail = async ({
       !import.meta.env.VITE_AWS_ACCESS_KEY_ID || 
       !import.meta.env.VITE_AWS_SECRET_ACCESS_KEY ||
       !import.meta.env.VITE_SES_SENDER_EMAIL) {
-    console.error('Variables d\'environnement AWS manquantes');
+    const errorMsg = 'Variables d\'environnement AWS manquantes';
+    handleError(new Error(errorMsg), 'Configuration AWS');
     return { success: false, error: 'Configuration AWS incomplète' };
   }
 
@@ -42,13 +46,14 @@ export const sendEmail = async ({
 
   try {
     const result = await ses.send(new SendEmailCommand(params));
-    console.log('Email envoyé avec succès à:', to, 'MessageId:', result.MessageId);
+    // Remplacer console.log par un toast de succès si nécessaire
+    // toast.success(`Email envoyé avec succès à ${to}`);
     return { 
       success: true, 
       messageId: result.MessageId 
     };
   } catch (error) {
-    console.error('Erreur envoi email à:', to, error);
+    handleError(error, `Erreur lors de l'envoi de l'email à ${to}`);
     return { success: false, error };
   }
 };

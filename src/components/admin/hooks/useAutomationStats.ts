@@ -1,16 +1,18 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '../../../lib/supabase';
 import type { AutomationStats } from '../types/automationTypes';
+import { useErrorStore } from '../../../stores/errorStore';
 
 export function useAutomationStats() {
   const [stats, setStats] = useState<AutomationStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Suppression de: const [error, setError] = useState<string | null>(null);
+  const { handleError } = useErrorStore();
 
   const refreshStats = useCallback(async () => {
     try {
       setIsLoading(true);
-      setError(null);
+      // Suppression de: setError(null);
       
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
       
@@ -51,12 +53,14 @@ export function useAutomationStats() {
         lastUpdate: new Date().toISOString()
       });
     } catch (err) {
-      console.error('Erreur lors de la récupération des stats:', err);
-      setError('Erreur lors du chargement des statistiques');
+      const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue';
+      handleError('Erreur lors de la récupération des statistiques d\'automation', errorMessage);
+      // Suppression de: setError('Erreur lors du chargement des statistiques');
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [handleError]);
 
-  return { stats, isLoading, error, refreshStats };
+  // Suppression du retour de error
+  return { stats, isLoading, refreshStats };
 }

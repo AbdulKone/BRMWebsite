@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useErrorStore } from '../../stores/errorStore';
 import { supabase } from '../../lib/supabase';
 import { Mail, TrendingUp, AlertTriangle, Eye, MousePointer } from 'lucide-react';
 
@@ -32,10 +33,11 @@ interface EmailTrackingData {
 }
 
 const EmailStatsDashboard = () => {
+  const { handleError } = useErrorStore();
   const [stats, setStats] = useState<EmailStats | null>(null);
   const [recentEmails, setRecentEmails] = useState<RecentEmail[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // Suppression de: const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState('30');
 
   const loadStats = useCallback(async () => {
@@ -91,10 +93,10 @@ const EmailStatsDashboard = () => {
         bounce_rate: total_sent > 0 ? (total_bounced / total_sent) * 100 : 0,
       });
     } catch (error) {
-      console.error('Erreur lors du chargement des statistiques:', error);
-      setError('Erreur lors du chargement des statistiques');
+      handleError('Erreur lors du chargement des statistiques', error instanceof Error ? error.message : 'Erreur inconnue');
+      // Suppression de: setError('Erreur lors du chargement des statistiques');
     }
-  }, [dateRange]);
+  }, [dateRange, handleError]);
 
   const loadRecentEmails = useCallback(async () => {
     try {
@@ -124,32 +126,34 @@ const EmailStatsDashboard = () => {
         subject: email.subject || 'Sans objet',
         status: email.email_status,
         sent_at: email.sent_at,
-        prospect_company: email.prospects?.[0]?.company_name || 'Entreprise inconnue' // Access first element of array
+        prospect_company: email.prospects?.[0]?.company_name || 'Entreprise inconnue'
       }));
   
       setRecentEmails(formattedData);
     } catch (error) {
-      console.error('Erreur lors du chargement des emails récents:', error);
-      setError('Erreur lors du chargement des emails récents');
+      handleError('Erreur lors du chargement des emails récents', error instanceof Error ? error.message : 'Erreur inconnue');
+      // Suppression de: console.error('Erreur lors du chargement des emails récents:', error);
+      // Suppression de: setError('Erreur lors du chargement des emails récents');
     }
-  }, []);
+  }, [handleError]);
 
   useEffect(() => {
     const loadData = async () => {
       setIsLoading(true);
-      setError(null);
+      // Suppression de: setError(null);
       try {
         await Promise.all([loadStats(), loadRecentEmails()]);
       } catch (err) {
-        console.error('Erreur lors du chargement des données:', err);
-        setError('Erreur lors du chargement des données');
+        handleError('Erreur lors du chargement des données', err instanceof Error ? err.message : 'Erreur inconnue');
+        // Suppression de: console.error('Erreur lors du chargement des données:', err);
+        // Suppression de: setError('Erreur lors du chargement des données');
       } finally {
         setIsLoading(false);
       }
     };
     
     loadData();
-  }, [loadStats, loadRecentEmails]);
+  }, [loadStats, loadRecentEmails, handleError]);
 
   const getStatusColor = useCallback((status: string) => {
     switch (status) {
@@ -163,16 +167,8 @@ const EmailStatsDashboard = () => {
     }
   }, []);
 
-  const handleRetry = useCallback(() => {
-    setError(null);
-    setIsLoading(true);
-    Promise.all([loadStats(), loadRecentEmails()])
-      .catch(err => {
-        console.error('Erreur lors du rechargement:', err);
-        setError('Erreur lors du rechargement des données');
-      })
-      .finally(() => setIsLoading(false));
-  }, [loadStats, loadRecentEmails]);
+  // Suppression de la fonction handleRetry non utilisée
+  // const handleRetry = useCallback(() => { ... }, [loadStats, loadRecentEmails, handleError]);
 
   if (isLoading) {
     return (
@@ -182,22 +178,8 @@ const EmailStatsDashboard = () => {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded">
-          <p className="font-medium">Erreur</p>
-          <p className="text-sm">{error}</p>
-          <button 
-            onClick={handleRetry}
-            className="mt-2 px-3 py-1 bg-red-700 hover:bg-red-600 rounded text-sm transition-colors"
-          >
-            Réessayer
-          </button>
-        </div>
-      </div>
-    );
-  }
+  // Suppression complète du bloc d'erreur car géré par les toasts
+  // if (error) { ... }
 
   return (
     <div className="space-y-6">

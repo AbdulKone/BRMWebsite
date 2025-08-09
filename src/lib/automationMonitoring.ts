@@ -1,3 +1,7 @@
+import { useErrorStore } from '../stores/errorStore';
+
+const { handleError } = useErrorStore.getState();
+
 interface AlertRule {
   id: string;
   name: string;
@@ -54,12 +58,15 @@ export class AutomationMonitor {
   }
 
   private sendAlert(rule: AlertRule): void {
-    // Envoyer notification (toast, email, webhook, etc.)
-    console.warn(`[${rule.severity.toUpperCase()}] ${rule.name}: ${rule.message}`);
+    // Utiliser handleError avec le niveau de sévérité approprié
+    const errorMessage = `${rule.name}: ${rule.message}`;
     
-    // Intégration avec services de notification
     if (rule.severity === 'error') {
+      handleError(new Error(errorMessage), 'Alerte Automation');
       this.sendSlackNotification(rule);
+    } else if (rule.severity === 'warning') {
+      // Pour les warnings, on peut utiliser handleError avec un préfixe différent
+      handleError(new Error(errorMessage), 'Avertissement Automation');
     }
   }
 

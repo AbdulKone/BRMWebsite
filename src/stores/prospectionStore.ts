@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useErrorStore, errorUtils } from './errorStore';
 
 // Interfaces avancées pour la segmentation et le scoring
 export interface ProspectSegment {
@@ -104,7 +105,7 @@ interface ProspectionState {
     qualified_prospects?: number;
   };
   loading: boolean;
-  error: string | null;
+  // Suppression de: error: string | null;
 }
 
 interface ProspectionActions {
@@ -211,62 +212,73 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
     monthly_growth: 0
   },
   loading: false,
-  error: null,
+  // Suppression de: error: null,
 
   loadProspects: async () => {
-    set({ loading: true, error: null });
-    try {
-      const { data, error } = await supabase
-        .from('prospects')
-        .select('*')
-        .order('created_at', { ascending: false });
+    set({ loading: true }); // Suppression de: error: null
+    
+    await errorUtils.withErrorHandling(
+      async () => {
+        const { data, error } = await supabase
+          .from('prospects')
+          .select('*')
+          .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      set({ prospects: data || [], loading: false });
-    } catch (error) {
-      set({ error: (error as Error).message, loading: false });
-    }
+        if (error) throw error;
+        set({ prospects: data || [], loading: false });
+      },
+      'Erreur lors du chargement des prospects'
+    );
+    
+    set({ loading: false });
   },
 
-  // Fonction unifiée pour créer et mettre à jour
   saveProspect: async (prospect: Partial<Prospect>) => {
-    try {
-      const now = new Date().toISOString();
-      const prospectData = prospect.id 
-        ? { ...prospect, updated_at: now }
-        : { ...prospect, created_at: now, updated_at: now };
+    await errorUtils.withErrorHandling(
+      async () => {
+        const now = new Date().toISOString();
+        const prospectData = prospect.id 
+          ? { ...prospect, updated_at: now }
+          : { ...prospect, created_at: now, updated_at: now };
 
-      const { data, error } = prospect.id 
-        ? await supabase.from('prospects').update(prospectData).eq('id', prospect.id).select().single()
-        : await supabase.from('prospects').insert([prospectData]).select().single();
-      
-      if (error) throw error;
-      
-      set(state => ({
-        prospects: prospect.id 
-          ? state.prospects.map(p => p.id === prospect.id ? data : p)
-          : [data, ...state.prospects]
-      }));
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
+        const { data, error } = prospect.id 
+          ? await supabase.from('prospects').update(prospectData).eq('id', prospect.id).select().single()
+          : await supabase.from('prospects').insert([prospectData]).select().single();
+        
+        if (error) throw error;
+        
+        set(state => ({
+          prospects: prospect.id 
+            ? state.prospects.map(p => p.id === prospect.id ? data : p)
+            : [data, ...state.prospects]
+        }));
+        
+        useErrorStore.getState().handleSuccess(
+          prospect.id ? 'Prospect mis à jour' : 'Prospect créé'
+        );
+      },
+      prospect.id ? 'Erreur lors de la mise à jour du prospect' : 'Erreur lors de la création du prospect'
+    );
   },
 
   deleteProspect: async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('prospects')
-        .delete()
-        .eq('id', id);
+    await errorUtils.withErrorHandling(
+      async () => {
+        const { error } = await supabase
+          .from('prospects')
+          .delete()
+          .eq('id', id);
 
-      if (error) throw error;
-      
-      set(state => ({
-        prospects: state.prospects.filter(p => p.id !== id)
-      }));
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
+        if (error) throw error;
+        
+        set(state => ({
+          prospects: state.prospects.filter(p => p.id !== id)
+        }));
+        
+        useErrorStore.getState().handleSuccess('Prospect supprimé avec succès');
+      },
+      'Erreur lors de la suppression du prospect'
+    );
   },
 
   calculateDetailedLeadScore: async (prospectId: string): Promise<DetailedLeadScore> => {
@@ -329,56 +341,57 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
   },
 
   loadMetrics: async () => {
-    try {
-      const prospects = get().prospects;
-      
-      const segmentMetrics = {
-        advertising: prospects.filter(p => p.segment_targeting?.includes('advertising')).length,
-        music: prospects.filter(p => p.segment_targeting?.includes('music')).length,
-        luxury: prospects.filter(p => p.segment_targeting?.includes('luxury')).length,
-        sports: prospects.filter(p => p.segment_targeting?.includes('sports')).length
-      };
-      
-      // Calculs de performance réels
-      const totalProspects = prospects.length;
-      const qualifiedProspects = prospects.filter(p => (p.lead_score || 0) >= 60).length;
-      const wonProspects = prospects.filter(p => p.status === 'closed_won').length;
-      const conversionRate = totalProspects > 0 ? wonProspects / totalProspects : 0;
-      
-      // Croissance mensuelle réelle
-      const lastMonth = new Date();
-      lastMonth.setMonth(lastMonth.getMonth() - 1);
-      const recentProspects = prospects.filter(p => new Date(p.created_at) > lastMonth).length;
-      const monthlyGrowth = totalProspects > 0 ? recentProspects / totalProspects : 0;
-      
-      // Valeur pipeline basée sur les segments
-      const pipelineValue = prospects.reduce((total, prospect) => {
-        const segment = prospect.segment_targeting?.[0] || 'general';
-        const baseValue = {
-          music: 8000,
-          advertising: 12000,
-          luxury: 15000,
-          sports: 10000,
-          general: 5000
-        }[segment] || 5000;
+    await errorUtils.withErrorHandling(
+      async () => {
+        const prospects = get().prospects;
         
-        return total + (baseValue * (prospect.lead_score || 0) / 100);
-      }, 0);
-  
-      set({
-        metrics: {
-          total_prospects: totalProspects,
-          conversion_rate: conversionRate,
-          avg_response_time: 24,
-          pipeline_value: Math.round(pipelineValue),
-          monthly_growth: monthlyGrowth,
-          segment_breakdown: segmentMetrics,
-          qualified_prospects: qualifiedProspects
-        }
-      });
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
+        const segmentMetrics = {
+          advertising: prospects.filter(p => p.segment_targeting?.includes('advertising')).length,
+          music: prospects.filter(p => p.segment_targeting?.includes('music')).length,
+          luxury: prospects.filter(p => p.segment_targeting?.includes('luxury')).length,
+          sports: prospects.filter(p => p.segment_targeting?.includes('sports')).length
+        };
+        
+        // Calculs de performance réels
+        const totalProspects = prospects.length;
+        const qualifiedProspects = prospects.filter(p => (p.lead_score || 0) >= 60).length;
+        const wonProspects = prospects.filter(p => p.status === 'closed_won').length;
+        const conversionRate = totalProspects > 0 ? wonProspects / totalProspects : 0;
+        
+        // Croissance mensuelle réelle
+        const lastMonth = new Date();
+        lastMonth.setMonth(lastMonth.getMonth() - 1);
+        const recentProspects = prospects.filter(p => new Date(p.created_at) > lastMonth).length;
+        const monthlyGrowth = totalProspects > 0 ? recentProspects / totalProspects : 0;
+        
+        // Valeur pipeline basée sur les segments
+        const pipelineValue = prospects.reduce((total, prospect) => {
+          const segment = prospect.segment_targeting?.[0] || 'general';
+          const baseValue = {
+            music: 8000,
+            advertising: 12000,
+            luxury: 15000,
+            sports: 10000,
+            general: 5000
+          }[segment] || 5000;
+          
+          return total + (baseValue * (prospect.lead_score || 0) / 100);
+        }, 0);
+    
+        set({
+          metrics: {
+            total_prospects: totalProspects,
+            conversion_rate: conversionRate,
+            avg_response_time: 24,
+            pipeline_value: Math.round(pipelineValue),
+            monthly_growth: monthlyGrowth,
+            segment_breakdown: segmentMetrics,
+            qualified_prospects: qualifiedProspects
+          }
+        });
+      },
+      'Erreur lors du chargement des métriques'
+    );
   },
 
   enrichProspectData: async (prospectId: string): Promise<EnrichedData> => {
@@ -418,22 +431,25 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
   },
 
   bulkUpdateStatus: async (prospectIds: string[], status: Prospect['status']) => {
-    try {
-      const { error } = await supabase
-        .from('prospects')
-        .update({ status, updated_at: new Date().toISOString() })
-        .in('id', prospectIds);
+    await errorUtils.withErrorHandling(
+      async () => {
+        const { error } = await supabase
+          .from('prospects')
+          .update({ status, updated_at: new Date().toISOString() })
+          .in('id', prospectIds);
 
-      if (error) throw error;
+        if (error) throw error;
 
-      set(state => ({
-        prospects: state.prospects.map(p => 
-          prospectIds.includes(p.id) ? { ...p, status } : p
-        )
-      }));
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
+        set(state => ({
+          prospects: state.prospects.map(p => 
+            prospectIds.includes(p.id) ? { ...p, status } : p
+          )
+        }));
+        
+        useErrorStore.getState().handleSuccess(`${prospectIds.length} prospects mis à jour`);
+      },
+      'Erreur lors de la mise à jour en lot des prospects'
+    );
   },
 
   getOptimalContactTime: async (prospectId: string): Promise<string> => {

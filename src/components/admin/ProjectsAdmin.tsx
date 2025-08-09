@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useContentStore } from '../../stores/contentStore';
+import { useErrorStore } from '../../stores/errorStore';
 import { Project } from '../../lib/types';
 import { supabase } from '../../lib/supabase';
 import { 
@@ -28,9 +29,10 @@ const ProjectsAdmin = () => {
     deleteProject, 
     updateProjectOrder,
     fetchProjects,
-    isLoading, 
-    error 
+    isLoading
+    // Suppression de: error 
   } = useContentStore();
+  const { handleError, handleSuccess } = useErrorStore();
   
   const [activeTab, setActiveTab] = useState<'list' | 'form'>('list');
   const [editingProject, setEditingProject] = useState<string | null>(null);
@@ -39,7 +41,7 @@ const ProjectsAdmin = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
+  // Suppression de: const [uploadError, setUploadError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [filterType, setFilterType] = useState<string>('all');
   const [showReorderModal, setShowReorderModal] = useState(false);
@@ -65,19 +67,19 @@ const ProjectsAdmin = () => {
       
       // Vérification de la taille (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        setUploadError("L'image ne doit pas dépasser 5MB");
+        handleError("L'image ne doit pas dépasser 5MB");
         return;
       }
 
       // Vérification du type de fichier
       if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-        setUploadError("Le fichier doit être une image (JPG, PNG ou WebP)");
+        handleError("Le fichier doit être une image (JPG, PNG ou WebP)");
         return;
       }
 
       setSelectedFile(file);
-      setUploadError(null);
-
+      // Suppression de: setUploadError(null);
+      
       // Créer une prévisualisation
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -115,7 +117,7 @@ const ProjectsAdmin = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setUploadError(null);
+    // Suppression de: setUploadError(null);
 
     try {
       if (!formData.title?.trim() || !formData.artist?.trim() || !formData.description?.trim()) {
@@ -143,15 +145,16 @@ const ProjectsAdmin = () => {
 
       if (editingProject) {
         await updateProject(editingProject, projectData);
+        handleSuccess('Projet mis à jour avec succès');
       } else {
         await createProject(projectData);
+        handleSuccess('Projet créé avec succès');
       }
 
       resetForm();
       setActiveTab('list');
     } catch (error) {
-      console.error('Error saving project:', error);
-      setUploadError((error as Error).message);
+      handleError(error, 'Erreur lors de la sauvegarde du projet');
     }
   };
 
@@ -171,8 +174,9 @@ const ProjectsAdmin = () => {
     if (projectToDelete) {
       try {
         await deleteProject(projectToDelete);
+        handleSuccess('Projet supprimé avec succès');
       } catch (error) {
-        console.error('Error deleting project:', error);
+        handleError(error, 'Erreur lors de la suppression du projet');
       } finally {
         setProjectToDelete(null);
         setDeleteConfirmOpen(false);
@@ -184,7 +188,7 @@ const ProjectsAdmin = () => {
     setFormData({});
     setEditingProject(null);
     setSelectedFile(null);
-    setUploadError(null);
+    // Suppression de: setUploadError(null);
     setImagePreview(null);
   };
 
@@ -223,15 +227,16 @@ const ProjectsAdmin = () => {
       }
       // Rafraîchir la liste des projets
       await fetchProjects();
-      setShowReorderModal(false); // Fermer la modale après réorganisation
+      setShowReorderModal(false);
+      handleSuccess('Ordre des projets mis à jour avec succès');
     } catch (error) {
-      console.error('Erreur lors de la réorganisation:', error);
-      setUploadError('Erreur lors de la réorganisation des projets');
+      handleError(error, 'Erreur lors de la réorganisation des projets');
+      // Suppression de: setUploadError('Erreur lors de la réorganisation des projets');
     }
   };
 
   // Fonction de rendu pour les éléments de projet dans le drag & drop
-  const renderProjectItem = (project: Project, index: number) => (
+  const renderProjectItem = (project: Project) => (
     <div className="flex items-center gap-4">
       <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-700 flex-shrink-0">
         {project.image_url ? (
@@ -271,16 +276,6 @@ const ProjectsAdmin = () => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-400 mx-auto mb-4"></div>
           <p className="text-gray-400">Chargement des projets...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
-        <div className="text-center">
-          <div className="text-red-400 text-lg mb-4">Erreur: {error}</div>
         </div>
       </div>
     );
@@ -522,11 +517,14 @@ const ProjectsAdmin = () => {
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Suppression du bloc d'affichage d'erreur uploadError */}
+                {/* 
                 {uploadError && (
                   <div className="bg-red-500/20 text-red-400 p-4 rounded-lg border border-red-500/30">
                     {uploadError}
                   </div>
                 )}
+                */}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>

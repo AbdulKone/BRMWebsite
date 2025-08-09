@@ -13,6 +13,7 @@ import LoginPage from './components/auth/LoginPage';
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import UnsubscribeManager from './components/prospection/UnsubscribeManager';
 import { useAuthStore } from './stores/authStore';
+import { Toaster } from 'react-hot-toast';
 
 function App() {
   const { initialize } = useAuthStore();
@@ -42,6 +43,7 @@ function App() {
           }
         />
       </Routes>
+      <Toaster />
     </Layout>
   );
 }

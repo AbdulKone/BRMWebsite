@@ -6,6 +6,7 @@ import { fr } from 'date-fns/locale';
 import ReCAPTCHA from 'react-google-recaptcha';
 import { supabase } from '../../lib/supabase';
 import { rateLimit, checkBookingOverlap } from '../../lib/security';
+import { useErrorStore } from '../../stores/errorStore';
 
 interface BookingForm {
   client_name: string;
@@ -19,9 +20,9 @@ interface BookingForm {
 const BookingPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [captchaValue, setCaptchaValue] = useState<string | null>(null);
   const { register, handleSubmit, formState: { errors }, reset } = useForm<BookingForm>();
+  const { handleError, handleSuccess } = useErrorStore();
 
   const validateTimeRange = (start_time: string, end_time: string, date: string) => {
     const startDateTime = parse(`${date} ${start_time}`, 'yyyy-MM-dd HH:mm', new Date(), { locale: fr });
@@ -41,18 +42,17 @@ const BookingPage = () => {
 
   const onSubmit = async (data: BookingForm) => {
     if (!captchaValue) {
-      setError("Veuillez confirmer que vous n'êtes pas un robot");
+      handleError("Veuillez confirmer que vous n'êtes pas un robot");
       return;
     }
 
     // Check rate limit
     if (!rateLimit(data.client_name)) {
-      setError("Vous avez atteint la limite de réservations. Veuillez réessayer plus tard.");
+      handleError("Vous avez atteint la limite de réservations. Veuillez réessayer plus tard.");
       return;
     }
 
     setIsSubmitting(true);
-    setError(null);
 
     try {
       // Validate time range
@@ -102,10 +102,9 @@ const BookingPage = () => {
       setIsSubmitted(true);
       reset();
       setCaptchaValue(null);
+      handleSuccess('Votre réservation a été enregistrée avec succès !');
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Une erreur est survenue lors de la réservation.';
-      setError(errorMessage);
-      console.error('Error booking studio:', err);
+      handleError(err, 'Erreur lors de la réservation');
     } finally {
       setIsSubmitting(false);
     }
@@ -139,12 +138,6 @@ const BookingPage = () => {
             </div>
           ) : (
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {error && (
-                <div className="bg-red-500/20 text-red-400 p-4 rounded-lg">
-                  {error}
-                </div>
-              )}
-
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   Client

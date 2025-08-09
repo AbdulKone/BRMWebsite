@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAutomationStore } from '../../../stores/automationStore';
 import { AutomationService } from '../services/automationService';
 import { AutomationStats, RecentActivity, AutomationConfig, SystemHealth } from '../types/automation.types';
+import { useErrorStore } from '../../../stores/errorStore';
 
 export const useAutomationDashboard = () => {
   const {
@@ -12,8 +13,11 @@ export const useAutomationDashboard = () => {
     triggerN8nWorkflow,
     syncWithN8n,
     startProspectionCampaign,
-    isLoading: storeLoading
+    isLoading: storeLoading,
+    initializeConfig
   } = useAutomationStore();
+
+  const { handleError, handleSuccess } = useErrorStore();
 
   const [stats, setStats] = useState<AutomationStats | null>(null);
   const [recentActivity, setRecentActivity] = useState<RecentActivity[]>([]);
@@ -58,37 +62,41 @@ export const useAutomationDashboard = () => {
   }, [config, isActive, error]);
 
   const updateConfig = useCallback(async (newConfig: Partial<AutomationConfig>) => {
-    if (!config) return;
-    
-    const updatedConfig = { ...config, ...newConfig };
-    setConfig(updatedConfig);
-    
-    try {
-      await AutomationService.updateConfig(updatedConfig);
-      
-      // Synchroniser avec le store
-      updateStoreConfig({
-        dailyLimit: updatedConfig.dailyLimit,
-        followUpDelay: updatedConfig.followUpDelay,
-        workingHours: updatedConfig.workingHours,
-        workingDays: updatedConfig.workingDays
-      });
-    } catch (error) {
-      console.error('Erreur lors de la mise à jour de la configuration:', error);
+    if (!config) {
+      handleError('Configuration non initialisée', 'Impossible de mettre à jour une configuration non chargée');
+      return;
     }
-  }, [config, updateStoreConfig]);
 
-  const updateScores = useCallback(async () => {
-    setIsLoading(true);
     try {
-      await triggerN8nWorkflow('update-scores');
-      await fetchAutomationStats();
+      setIsLoading(true);
+      const fullConfig: AutomationConfig = { ...config, ...newConfig };
+      await AutomationService.updateConfig(fullConfig);
+      setConfig(fullConfig);
+      handleSuccess('Configuration mise à jour avec succès');
     } catch (error) {
-      console.error('Erreur lors de la mise à jour des scores:', error);
+      handleError('Erreur lors de la mise à jour de la configuration', error instanceof Error ? error.message : 'Erreur inconnue');
     } finally {
       setIsLoading(false);
     }
-  }, [triggerN8nWorkflow, fetchAutomationStats]);
+  }, [config, handleError, handleSuccess]);
+
+  const updateScores = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      await triggerN8nWorkflow('update-scores');
+      await fetchAutomationStats();
+      handleSuccess('Scores mis à jour avec succès');
+    } catch (error) {
+      handleError('Erreur lors de la mise à jour des scores', error instanceof Error ? error.message : 'Erreur inconnue');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [triggerN8nWorkflow, fetchAutomationStats, handleError, handleSuccess]);
+
+  // Ajouter un useEffect pour initialiser la configuration au montage
+  useEffect(() => {
+    initializeConfig();
+  }, [initializeConfig]);
 
   useEffect(() => {
     fetchAutomationConfig();
@@ -107,6 +115,15 @@ export const useAutomationDashboard = () => {
     return () => clearInterval(interval);
   }, [checkSystemHealth]);
 
+  const handleSyncWithN8n = useCallback(async () => {
+    setIsSyncing(true);
+    try {
+      await syncWithN8n();
+    } finally {
+      setIsSyncing(false);
+    }
+  }, [syncWithN8n]);
+  
   return {
     // État
     stats,
@@ -122,7 +139,7 @@ export const useAutomationDashboard = () => {
     toggleAutomation,
     updateConfig,
     updateScores,
-    syncWithN8n,
+    syncWithN8n: handleSyncWithN8n,
     startProspectionCampaign,
     
     // Fonctions de rafraîchissement

@@ -1,13 +1,14 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import type { Project, Artist, Service } from '../lib/types';
+import { useErrorStore } from './errorStore';
 
 interface ContentStore {
   projects: Project[];
   artists: Artist[];
   services: Service[];
   isLoading: boolean;
-  error: string | null;
+  // Suppression de l'état error local
   fetchProjects: () => Promise<void>;
   fetchArtists: () => Promise<void>;
   fetchServices: () => Promise<void>;
@@ -36,10 +37,9 @@ export const useContentStore = create<ContentStore>((set, get) => ({
   artists: [],
   services: [],
   isLoading: false,
-  error: null,
 
   fetchProjects: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const { data, error } = await supabase
         .from('projects')
@@ -49,14 +49,15 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       set({ projects: data || [] });
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors du chargement des projets', (error as Error).message);
     } finally {
       set({ isLoading: false });
     }
   },
 
   fetchArtists: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const { data, error } = await supabase
         .from('artists')
@@ -66,14 +67,15 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       set({ artists: data || [] });
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors du chargement des artistes', (error as Error).message);
     } finally {
       set({ isLoading: false });
     }
   },
 
   fetchServices: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const { data: services, error: servicesError } = await supabase
         .from('services')
@@ -97,14 +99,15 @@ export const useContentStore = create<ContentStore>((set, get) => ({
 
       set({ services: servicesWithFeatures });
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors du chargement des services', (error as Error).message);
     } finally {
       set({ isLoading: false });
     }
   },
 
   createProject: async (project) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const { data: maxOrder } = await supabase
         .from('projects')
@@ -124,14 +127,15 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       await get().fetchProjects();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors de la création du projet', (error as Error).message);
     } finally {
       set({ isLoading: false });
     }
   },
 
   updateProject: async (id, project) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const { error } = await supabase
         .from('projects')
@@ -143,14 +147,15 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       await get().fetchProjects();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors de la mise à jour du projet', (error as Error).message);
     } finally {
       set({ isLoading: false });
     }
   },
 
   deleteProject: async (id) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const { error } = await supabase
         .from('projects')
@@ -160,7 +165,8 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       await get().fetchProjects();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors de la suppression du projet', (error as Error).message);
     } finally {
       set({ isLoading: false });
     }
@@ -176,11 +182,13 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       await get().fetchProjects();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors du réordonnancement du projet', (error as Error).message);
     }
   },
 
   createArtist: async (artist) => {
+    set({ isLoading: true });
     try {
       const { data: maxOrder } = await supabase
         .from('artists')
@@ -198,11 +206,15 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       await get().fetchArtists();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors de la création de l\'artiste', (error as Error).message);
+    } finally {
+      set({ isLoading: false });
     }
   },
 
   updateArtist: async (id, artist) => {
+    set({ isLoading: true });
     try {
       const { error } = await supabase
         .from('artists')
@@ -212,11 +224,15 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       await get().fetchArtists();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors de la mise à jour de l\'artiste', (error as Error).message);
+    } finally {
+      set({ isLoading: false });
     }
   },
 
   deleteArtist: async (id) => {
+    set({ isLoading: true });
     try {
       const { error } = await supabase
         .from('artists')
@@ -226,7 +242,10 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       await get().fetchArtists();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors de la suppression de l\'artiste', (error as Error).message);
+    } finally {
+      set({ isLoading: false });
     }
   },
 
@@ -240,11 +259,13 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       await get().fetchArtists();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors du réordonnancement de l\'artiste', (error as Error).message);
     }
   },
 
   createService: async (service) => {
+    set({ isLoading: true });
     try {
       const { data: maxOrder } = await supabase
         .from('services')
@@ -284,11 +305,15 @@ export const useContentStore = create<ContentStore>((set, get) => ({
 
       await get().fetchServices();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors de la création du service', (error as Error).message);
+    } finally {
+      set({ isLoading: false });
     }
   },
 
   updateService: async (id, service) => {
+    set({ isLoading: true });
     try {
       const { error } = await supabase
         .from('services')
@@ -324,11 +349,15 @@ export const useContentStore = create<ContentStore>((set, get) => ({
 
       await get().fetchServices();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors de la mise à jour du service', (error as Error).message);
+    } finally {
+      set({ isLoading: false });
     }
   },
 
   deleteService: async (id) => {
+    set({ isLoading: true });
     try {
       const { error } = await supabase
         .from('services')
@@ -338,7 +367,10 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       await get().fetchServices();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors de la suppression du service', (error as Error).message);
+    } finally {
+      set({ isLoading: false });
     }
   },
 
@@ -352,7 +384,8 @@ export const useContentStore = create<ContentStore>((set, get) => ({
       if (error) throw error;
       await get().fetchServices();
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors du réordonnancement du service', (error as Error).message);
     }
   },
 

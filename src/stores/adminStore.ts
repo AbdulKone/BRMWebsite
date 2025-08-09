@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 import type { StudioBooking, ContactMessage } from '../lib/types';
+import { useErrorStore, errorUtils } from './errorStore';
 
 interface PaginationState {
   page: number;
@@ -12,7 +13,7 @@ interface AdminStore {
   bookings: StudioBooking[];
   messages: ContactMessage[];
   isLoading: boolean;
-  error: string | null;
+  // Suppression de: error: string | null;
   pagination: PaginationState;
   setPagination: (pagination: Partial<PaginationState>) => void;
   fetchBookings: () => Promise<void>;
@@ -27,7 +28,7 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   bookings: [],
   messages: [],
   isLoading: false,
-  error: null,
+  // Suppression de: error: null,
   pagination: {
     page: 1,
     pageSize: 10,
@@ -41,126 +42,115 @@ export const useAdminStore = create<AdminStore>((set, get) => ({
   },
 
   fetchBookings: async () => {
-    set({ isLoading: true, error: null });
-    try {
-      const { pagination } = get();
-      const from = (pagination.page - 1) * pagination.pageSize;
-      const to = from + pagination.pageSize - 1;
+    set({ isLoading: true }); // Suppression de: error: null
+    
+    await errorUtils.withErrorHandling(
+      async () => {
+        const { pagination } = get();
+        const from = (pagination.page - 1) * pagination.pageSize;
+        const to = from + pagination.pageSize - 1;
 
-      const { data, error, count } = await supabase
-        .from('studio_bookings')
-        .select('*', { count: 'exact' })
-        .order('date', { ascending: true })
-        .range(from, to);
-
-      if (error) throw error;
-      set({ 
-        bookings: data,
-        pagination: { ...get().pagination, total: count || 0 }
-      });
-    } catch (error) {
-      set({ error: (error as Error).message });
-    } finally {
-      set({ isLoading: false });
-    }
+        const { data, error, count } = await supabase
+          .from('studio_bookings')
+          .select('*', { count: 'exact' })
+          .order('created_at', { ascending: false })
+          .range(from, to);
+          
+        if (error) throw error;
+        set({ 
+          bookings: data || [],
+          pagination: { ...get().pagination, total: count || 0 }
+        });
+      },
+      'Erreur lors du chargement des réservations'
+    );
+    
+    set({ isLoading: false });
   },
 
   fetchMessages: async () => {
-    // Vérifier l'utilisateur connecté
-    const { data: { user } } = await supabase.auth.getUser();
-    console.log('👤 Utilisateur connecté:', user);
-    console.log('🔑 Métadonnées utilisateur:', user?.user_metadata);
+    set({ isLoading: true }); // Suppression de: error: null
     
-    console.log('🔍 Début de fetchMessages');
-    set({ isLoading: true, error: null });
-    try {
-      const { pagination } = get();
-      const from = (pagination.page - 1) * pagination.pageSize;
-      const to = from + pagination.pageSize - 1;
-      
-      console.log('📄 Pagination:', { from, to, page: pagination.page, pageSize: pagination.pageSize });
-      
-      const { data, error, count } = await supabase
-        .from('contact_messages')
-        .select('*', { count: 'exact' })
-        .order('created_at', { ascending: false })
-        .range(from, to);
-      
-      console.log('📊 Résultat Supabase:', { data, error, count });
-      console.log('📝 Nombre de messages récupérés:', data?.length || 0);
-      
-      if (error) {
-        console.error('❌ Erreur Supabase:', error);
-        throw error;
-      }
-      
-      set({ 
-        messages: data || [],
-        pagination: { ...get().pagination, total: count || 0 }
-      });
-      
-      console.log('✅ Messages mis à jour dans le store:', data?.length || 0);
-    } catch (error) {
-      console.error('💥 Erreur dans fetchMessages:', error);
-      set({ error: (error as Error).message });
-    } finally {
-      set({ isLoading: false });
-    }
+    await errorUtils.withErrorHandling(
+      async () => {
+        const { data, error, count } = await supabase
+          .from('contact_messages')
+          .select('*', { count: 'exact' })
+          .order('created_at', { ascending: false });
+          
+        if (error) throw error;
+        set({ 
+          messages: data || [],
+          pagination: { ...get().pagination, total: count || 0 }
+        });
+      },
+      'Erreur lors du chargement des messages'
+    );
+    
+    set({ isLoading: false });
   },
 
   updateBookingStatus: async (id: string, status: StudioBooking['status']) => {
-    try {
-      const { error } = await supabase
-        .from('studio_bookings')
-        .update({ status })
-        .eq('id', id);
-
-      if (error) throw error;
-      await get().fetchBookings();
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
+    await errorUtils.withErrorHandling(
+      async () => {
+        const { error } = await supabase
+          .from('studio_bookings')
+          .update({ status })
+          .eq('id', id);
+          
+        if (error) throw error;
+        await get().fetchBookings();
+        useErrorStore.getState().handleSuccess('Statut de réservation mis à jour');
+      },
+      'Erreur mise à jour réservation'
+    );
   },
 
   deleteBooking: async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('studio_bookings')
-        .delete()
-        .eq('id', id);
+    await errorUtils.withErrorHandling(
+      async () => {
+        const { error } = await supabase
+          .from('studio_bookings')
+          .delete()
+          .eq('id', id);
 
-      if (error) throw error;
-      await get().fetchBookings();
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
+        if (error) throw error;
+        await get().fetchBookings();
+        useErrorStore.getState().handleSuccess('Réservation supprimée');
+      },
+      'Erreur lors de la suppression de la réservation'
+    );
   },
 
   updateMessageStatus: async (id: string, status: ContactMessage['status']) => {
-    try {
-      const { error } = await supabase
-        .from('contact_messages')
-        .update({ status })
-        .eq('id', id);
+    await errorUtils.withErrorHandling(
+      async () => {
+        const { error } = await supabase
+          .from('contact_messages')
+          .update({ status })
+          .eq('id', id);
 
-      if (error) throw error;
-      await get().fetchMessages();
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
+        if (error) throw error;
+        await get().fetchMessages();
+        useErrorStore.getState().handleSuccess('Statut du message mis à jour');
+      },
+      'Erreur mise à jour message'
+    );
   },
 
   deleteMessage: async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('contact_messages')
-        .delete()
-        .eq('id', id);
+    await errorUtils.withErrorHandling(
+      async () => {
+        const { error } = await supabase
+          .from('contact_messages')
+          .delete()
+          .eq('id', id);
 
-      if (error) throw error;
-      await get().fetchMessages();
-    } catch (error) {
-      set({ error: (error as Error).message });
-    }
+        if (error) throw error;
+        await get().fetchMessages();
+        useErrorStore.getState().handleSuccess('Message supprimé');
+      },
+      'Erreur lors de la suppression du message'
+    );
   },
 }));

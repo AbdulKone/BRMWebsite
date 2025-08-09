@@ -1,4 +1,7 @@
 import { supabase } from './supabase';
+import { useErrorStore } from '../stores/errorStore';
+
+const { handleError } = useErrorStore.getState();
 
 export interface EnrichmentData {
   company_info?: {
@@ -48,7 +51,7 @@ export class ProspectEnrichmentService {
       }
 
     } catch (error) {
-      console.error('Erreur enrichissement:', error);
+      handleError(error, 'Erreur lors de l\'enrichissement du prospect');
     }
 
     // Mise à jour du prospect avec les données enrichies

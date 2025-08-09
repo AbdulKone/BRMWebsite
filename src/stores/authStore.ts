@@ -1,11 +1,12 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
+import { useErrorStore } from './errorStore';
 
 interface AuthState {
   isAuthenticated: boolean;
   isAdmin: boolean;
   isLoading: boolean;
-  error: string | null;
+  // Suppression de l'état error local
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   checkAuth: () => Promise<void>;
@@ -16,10 +17,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isAuthenticated: false,
   isAdmin: false,
   isLoading: true,
-  error: null,
 
   signIn: async (email: string, password: string) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const { data: { user }, error: signInError } = await supabase.auth.signInWithPassword({
         email,
@@ -39,8 +39,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       set({ isAuthenticated: true, isAdmin: true });
     } catch (error) {
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur de connexion', (error as Error).message);
       set({ 
-        error: (error as Error).message,
         isAuthenticated: false,
         isAdmin: false 
       });
@@ -51,20 +52,21 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   signOut: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
       set({ isAuthenticated: false, isAdmin: false });
     } catch (error) {
-      set({ error: (error as Error).message });
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur lors de la déconnexion', (error as Error).message);
     } finally {
       set({ isLoading: false });
     }
   },
 
   checkAuth: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true });
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
@@ -81,8 +83,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isAdmin: isAdmin
       });
     } catch (error) {
+      const { handleError } = useErrorStore.getState();
+      handleError('Erreur de vérification d\'authentification', (error as Error).message);
       set({ 
-        error: (error as Error).message,
         isAuthenticated: false,
         isAdmin: false 
       });
@@ -97,14 +100,13 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Écouter les changements d'état d'authentification
     supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log('Auth state changed:', event, session?.user?.email);
+      // Suppression du console.log
       
       if (event === 'SIGNED_OUT' || !session) {
         set({ 
           isAuthenticated: false, 
           isAdmin: false, 
-          isLoading: false,
-          error: null 
+          isLoading: false
         });
         return;
       }
@@ -114,11 +116,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         
         if (!isAdmin) {
           await supabase.auth.signOut();
+          const { handleError } = useErrorStore.getState();
+          handleError('Accès refusé', 'Seuls les administrateurs peuvent se connecter.');
           set({ 
             isAuthenticated: false, 
             isAdmin: false, 
-            isLoading: false,
-            error: 'Accès non autorisé. Seuls les administrateurs peuvent se connecter.' 
+            isLoading: false
           });
           return;
         }
@@ -126,8 +129,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ 
           isAuthenticated: true, 
           isAdmin: true, 
-          isLoading: false,
-          error: null 
+          isLoading: false
         });
       }
     });

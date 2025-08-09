@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useContentStore } from '../../stores/contentStore';
+import { useErrorStore } from '../../stores/errorStore';
 import { Service } from '../../lib/types';
 import { 
   Pencil, 
@@ -16,6 +17,7 @@ import DragDropReorder from './DragDropReorder';
 
 const ServicesAdmin = () => {
   const { services, createService, updateService, deleteService, fetchServices, updateServiceOrder } = useContentStore();
+  const { handleError, handleSuccess } = useErrorStore();
   const [activeTab, setActiveTab] = useState<'list' | 'form'>('list');
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [editingService, setEditingService] = useState<string | null>(null);
@@ -83,24 +85,21 @@ const ServicesAdmin = () => {
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.title || !formData.description || !formData.icon) {
-      return;
-    }
 
     try {
       if (isEditing && editingService) {
         await updateService(editingService, formData);
+        handleSuccess('Service mis à jour avec succès');
       } else {
-        // Correction : ne pas exclure display_order du type
         await createService(formData as Omit<Service, 'id' | 'created_at'>);
+        handleSuccess('Service créé avec succès');
       }
       resetForm();
       setActiveTab('list');
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error);
+      handleError(error, 'Erreur lors de la sauvegarde du service');
     }
-  }, [formData, isEditing, editingService, updateService, createService, resetForm]);
+  }, [formData, isEditing, editingService, updateService, createService, resetForm, handleError, handleSuccess]);
 
   const handleCloseForm = useCallback(() => {
     const hasChanges = Object.keys(formData).some(key => {

@@ -1,5 +1,31 @@
 import { Database } from './database.types';
 
+export interface Prospect {
+  id: string;
+  company_name: string;
+  email: string;
+  status: 'new' | 'contacted' | 'interested' | 'qualified' | 'proposal_sent' | 'negotiation' | 'closed_won' | 'closed_lost';
+  last_contact: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+  last_contact_date: string | null;
+  last_email_sent: string | null;
+  engagement_score: number | null;
+  tags: string[] | null;
+  source: string | null;
+  segment_targeting: any;
+  next_follow_up: string | null;
+  lead_score: number | null;
+  conversion_probability: number | null;
+  enriched_data: any;
+  first_name: string | null;
+  last_name: string | null;
+  position: string | null;
+  website: string | null;
+  linkedin_url: string | null;
+}
+
 export interface Project {
   id: string;
   title: string;

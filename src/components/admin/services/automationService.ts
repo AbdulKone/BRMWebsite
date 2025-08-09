@@ -1,42 +1,43 @@
 import { supabase } from '../../../lib/supabase';
 import { AutomationConfig, AutomationStats, RecentActivity, EmailTrackingData, SystemHealth } from '../types/automation.types';
+import { errorUtils } from '../../../stores/errorStore';
 
 export class AutomationService {
   static async fetchAutomationConfig(): Promise<AutomationConfig | null> {
-    try {
-      const { data, error } = await supabase
-        .from('automation_config')
-        .select('*')
-        .eq('id', 'main')
-        .single();
+    return await errorUtils.withErrorHandling(
+      async () => {
+        const { data, error } = await supabase
+          .from('automation_config')
+          .select('*')
+          .eq('id', 'main')
+          .single();
 
-      if (error && error.code !== 'PGRST116') {
-        throw error;
-      }
+        if (error && error.code !== 'PGRST116') {
+          throw error;
+        }
 
-      if (data) {
-        const dbConfig = data.config as any;
-        return {
-          isActive: data.is_active,
-          dailyLimit: dbConfig.dailyLimit || 50,
-          followUpDelay: dbConfig.followUpDelay || 5,
-          workingHours: dbConfig.workingHours || { start: '09:00', end: '18:00' },
-          workingDays: dbConfig.workingDays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
-          activityTimeoutMinutes: dbConfig.activityTimeoutMinutes || 60,
-          statsTimeframeDays: dbConfig.statsTimeframeDays || 30,
-          recentActivityHours: dbConfig.recentActivityHours || 24,
-          performanceThresholds: dbConfig.performanceThresholds || {
-            openRate: { excellent: 25, good: 15 },
-            responseRate: { excellent: 5, good: 2 }
-          }
-        };
-      }
+        if (data) {
+          const dbConfig = data.config as any;
+          return {
+            isActive: data.is_active,
+            dailyLimit: dbConfig.dailyLimit || 50,
+            followUpDelay: dbConfig.followUpDelay || 5,
+            workingHours: dbConfig.workingHours || { start: '09:00', end: '18:00' },
+            workingDays: dbConfig.workingDays || ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+            activityTimeoutMinutes: dbConfig.activityTimeoutMinutes || 60,
+            statsTimeframeDays: dbConfig.statsTimeframeDays || 30,
+            recentActivityHours: dbConfig.recentActivityHours || 24,
+            performanceThresholds: dbConfig.performanceThresholds || {
+              openRate: { excellent: 25, good: 15 },
+              responseRate: { excellent: 5, good: 2 }
+            }
+          };
+        }
 
-      return await this.createDefaultConfig();
-    } catch (error) {
-      console.error('Erreur lors de la récupération de la configuration:', error);
-      return null;
-    }
+        return await this.createDefaultConfig();
+      },
+      'Erreur lors de la récupération de la configuration'
+    );
   }
 
   private static async createDefaultConfig(): Promise<AutomationConfig> {
@@ -325,3 +326,64 @@ export class AutomationService {
     }
   }
 }
+
+export const automationService = {
+  async getConfiguration() {
+    return await errorUtils.withErrorHandling(
+      async () => {
+        const response = await fetch('/api/automation/config');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      },
+      'Erreur lors de la récupération de la configuration'
+    );
+  },
+
+  async updateConfiguration(config: any) {
+    return await errorUtils.withErrorHandling(
+      async () => {
+        const response = await fetch('/api/automation/config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(config)
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      },
+      'Erreur lors de la mise à jour de la configuration'
+    );
+  },
+
+  async getStats() {
+    return await errorUtils.withErrorHandling(
+      async () => {
+        const response = await fetch('/api/automation/stats');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      },
+      'Erreur lors de la récupération des stats'
+    );
+  },
+
+  async getRecentActivity() {
+    return await errorUtils.withErrorHandling(
+      async () => {
+        const response = await fetch('/api/automation/activity');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      },
+      'Erreur lors de la récupération des activités'
+    );
+  },
+
+  async checkSystemHealth() {
+    return await errorUtils.withErrorHandling(
+      async () => {
+        const response = await fetch('/api/automation/health');
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        return await response.json();
+      },
+      'Erreur lors de la vérification de la santé du système'
+    );
+  }
+};
