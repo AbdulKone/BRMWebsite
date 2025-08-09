@@ -64,6 +64,14 @@ export default async function handler(req, res) {
     
     // Traiter différentes actions
     switch (action) {
+      case 'start_automation':
+        return await handleStartAutomation(data, res);
+      case 'stop_automation':
+        return await handleStopAutomation(data, res);
+      case 'trigger_workflow':
+        return await handleTriggerWorkflow(data, res);
+      case 'sync_automation_status':
+        return await handleSyncAutomationStatus(data, res);
       case 'send_email':
         return await handleSendEmail(data, res);
       case 'update_prospect':
@@ -262,4 +270,161 @@ try {
 } catch (error) {
   await logWebhookAccess(false, clientIP, req.body?.action, error.message);
   return res.status(500).json({ success: false, error: error.message });
+}
+
+// Nouvelles fonctions pour gérer l'automatisation
+async function handleStartAutomation(data, res) {
+  try {
+    const { config } = data;
+    
+    // Déclencher les workflows n8n appropriés
+    const workflows = [
+      'prospect-enrichment-workflow',
+      'email-sequence-workflow', 
+      'lead-scoring-workflow'
+    ];
+    
+    for (const workflowId of workflows) {
+      await triggerN8nWorkflow(workflowId, { 
+        action: 'start',
+        config 
+      });
+    }
+    
+    // Enregistrer l'état dans la base de données
+    await supabase.from('automation_config').upsert({
+      id: 'main',
+      is_active: true,
+      config,
+      updated_at: new Date().toISOString()
+    });
+    
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Automatisation démarrée avec succès' 
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function handleStopAutomation(data, res) {
+  try {
+    // Arrêter les workflows n8n
+    const workflows = [
+      'prospect-enrichment-workflow',
+      'email-sequence-workflow',
+      'lead-scoring-workflow'
+    ];
+    
+    for (const workflowId of workflows) {
+      await triggerN8nWorkflow(workflowId, { action: 'stop' });
+    }
+    
+    // Mettre à jour l'état dans la base de données
+    await supabase.from('automation_config').upsert({
+      id: 'main',
+      is_active: false,
+      updated_at: new Date().toISOString()
+    });
+    
+    return res.status(200).json({ 
+      success: true, 
+      message: 'Automatisation arrêtée avec succès' 
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function handleTriggerWorkflow(data, res) {
+  try {
+    const { workflowId, ...workflowData } = data;
+    
+    const result = await triggerN8nWorkflow(workflowId, workflowData);
+    
+    return res.status(200).json({ 
+      success: true, 
+      result,
+      message: `Workflow ${workflowId} déclenché avec succès` 
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+async function handleSyncAutomationStatus(data, res) {
+  try {
+    const { currentConfig, isActive } = data;
+    
+    // Synchroniser avec n8n
+    await triggerN8nWorkflow('sync-status-workflow', {
+      config: currentConfig,
+      isActive
+    });
+    
+    // Récupérer les statistiques mises à jour
+    const stats = await getAutomationStats();
+    
+    return res.status(200).json({ 
+      success: true, 
+      stats,
+      message: 'Synchronisation réussie' 
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+}
+
+// Fonction utilitaire pour déclencher un workflow n8n
+async function triggerN8nWorkflow(workflowId, data) {
+  const n8nUrl = process.env.N8N_WEBHOOK_URL;
+  const n8nApiKey = process.env.N8N_API_KEY;
+  
+  if (!n8nUrl || !n8nApiKey) {
+    throw new Error('Configuration n8n manquante');
+  }
+  
+  const response = await fetch(`${n8nUrl}/webhook/${workflowId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${n8nApiKey}`
+    },
+    body: JSON.stringify(data)
+  });
+  
+  if (!response.ok) {
+    throw new Error(`Erreur n8n: ${response.statusText}`);
+  }
+  
+  return await response.json();
+}
+
+// Fonction pour récupérer les statistiques d'automatisation
+async function getAutomationStats() {
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+  
+  const [prospectsResult, emailsResult, sequencesResult, scheduledResult] = await Promise.all([
+    supabase.from('prospects').select('id').gte('created_at', thirtyDaysAgo),
+    supabase.from('email_tracking').select('*').gte('sent_at', thirtyDaysAgo),
+    supabase.from('campaigns').select('id').eq('status', 'active'),
+    supabase.from('prospects').select('id').not('next_follow_up', 'is', null).gte('next_follow_up', new Date().toISOString())
+  ]);
+
+  const emailTracking = emailsResult.data || [];
+  const totalSent = emailTracking.length;
+  const opened = emailTracking.filter(e => e.opened_at).length;
+  const responded = emailTracking.filter(e => e.responded_at).length;
+  const converted = emailTracking.filter(e => e.email_status === 'converted').length;
+
+  return {
+    prospectsAdded: prospectsResult.data?.length || 0,
+    emailsSent: totalSent,
+    openRate: totalSent > 0 ? (opened / totalSent) * 100 : 0,
+    responseRate: totalSent > 0 ? (responded / totalSent) * 100 : 0,
+    conversionRate: totalSent > 0 ? (converted / totalSent) * 100 : 0,
+    activeSequences: sequencesResult.data?.length || 0,
+    scheduledEmails: scheduledResult.data?.length || 0
+  };
 }
