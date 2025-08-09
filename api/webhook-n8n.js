@@ -1,5 +1,12 @@
 import crypto from 'crypto';
-import { supabase } from '@/lib/supabaseClient';
+// Corriger l'import Supabase
+import { createClient } from '@supabase/supabase-js';
+
+// Créer le client Supabase directement dans le fichier API
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY // Utiliser la clé service pour les API routes
+);
 
 async function logWebhookAccess(success, ip, action, error = null) {
   try {
@@ -105,6 +112,14 @@ export default async function handler(req, res) {
         break;
       case 'batch_trigger':
         result = await handleBatchTrigger(data, res);
+        break;
+      // AJOUTER ce case pour health_check
+      case 'health_check':
+        result = { 
+          status: 'healthy', 
+          timestamp: new Date().toISOString(),
+          service: 'webhook-n8n'
+        };
         break;
       default:
         return res.status(400).json({ success: false, error: 'Unknown action' });
