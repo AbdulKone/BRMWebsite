@@ -103,6 +103,9 @@ export default async function handler(req, res) {
       case 'update_prospect_scores':
         result = await updateScores();
         break;
+      case 'batch_trigger':
+        result = await handleBatchTrigger(data, res);
+        break;
       default:
         return res.status(400).json({ success: false, error: 'Unknown action' });
     }
@@ -132,4 +135,26 @@ async function handleSendEmail({ to, subject, body }, res) {
     throw new Error(`Erreur envoi email: ${errText}`);
   }
   return await response.json();
+}
+
+async function handleBatchTrigger({ items }) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error('Items array required for batch trigger');
+  }
+  
+  const results = await Promise.allSettled(
+    items.map(({ workflowId, data }) => 
+      triggerN8nWorkflow(workflowId, data)
+    )
+  );
+  
+  return {
+    success: true,
+    results: results.map((result, index) => ({
+      workflowId: items[index].workflowId,
+      success: result.status === 'fulfilled',
+      data: result.status === 'fulfilled' ? result.value : null,
+      error: result.status === 'rejected' ? result.reason.message : null
+    }))
+  };
 }
