@@ -38,8 +38,8 @@ export class ProspectEnrichmentService {
     const emailDomain = prospect.email.split('@')[1];
     
     try {
-      // Recherche d'informations sur l'entreprise
-      const companyInfo = await this.getCompanyInfo(emailDomain);
+      // Recherche d'informations sur l'entreprise via Hunter.io
+      const companyInfo = await this.getCompanyInfoFromHunter(emailDomain);
       if (companyInfo) {
         enrichmentData.company_info = companyInfo;
       }
@@ -66,32 +66,65 @@ export class ProspectEnrichmentService {
     return enrichmentData;
   }
 
-  private static async getCompanyInfo(domain: string) {
-    // Logique d'enrichissement via APIs externes basée sur le domaine
-    // Clearbit, Hunter.io, etc.
+  private static async getCompanyInfoFromHunter(domain: string) {
+    const apiKey = import.meta.env.VITE_HUNTER_API_KEY;
     
-    // Exemple d'utilisation du domaine pour déterminer l'industrie
-    let industry = 'unknown';
-    let size = 'small';
-    let location = 'France';
-    let website = `https://${domain}`;
-
-    // Analyse du domaine pour déterminer l'industrie
-    if (domain.includes('music') || domain.includes('label') || domain.includes('studio')) {
-      industry = 'music';
-    } else if (domain.includes('media') || domain.includes('prod')) {
-      industry = 'media';
+    if (!apiKey) {
+      console.warn('Clé API Hunter.io manquante');
+      return this.getFallbackCompanyInfo(domain);
     }
 
-    // Ici vous pourriez faire des appels API réels avec le domaine
-    // const response = await fetch(`https://api.clearbit.com/v2/companies/find?domain=${domain}`);
-    
+    try {
+      // Appel à l'API Hunter.io pour obtenir des informations sur le domaine
+      const url = `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&api_key=${apiKey}&limit=1`;
+      const response = await fetch(url);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.errors?.[0]?.details || 'Erreur API Hunter.io');
+      }
+
+      // Extraction des informations de l'entreprise depuis Hunter.io
+      const hunterData = data.data;
+      
+      return {
+        industry: this.determineIndustryFromDomain(domain),
+        size: this.estimateCompanySize(hunterData.emails?.length || 0),
+        location: hunterData.country || 'France',
+        website: `https://${domain}`
+      };
+    } catch (error) {
+      console.warn('Erreur lors de l\'appel à Hunter.io:', error);
+      return this.getFallbackCompanyInfo(domain);
+    }
+  }
+
+  private static getFallbackCompanyInfo(domain: string) {
+    // Logique de fallback basée sur l'analyse du domaine
     return {
-      industry,
-      size,
-      location,
-      website
+      industry: this.determineIndustryFromDomain(domain),
+      size: 'small',
+      location: 'France',
+      website: `https://${domain}`
     };
+  }
+
+  private static determineIndustryFromDomain(domain: string): string {
+    // Analyse du domaine pour déterminer l'industrie
+    if (domain.includes('music') || domain.includes('label') || domain.includes('studio')) {
+      return 'music';
+    } else if (domain.includes('media') || domain.includes('prod')) {
+      return 'media';
+    } else if (domain.includes('tech') || domain.includes('software')) {
+      return 'technology';
+    }
+    return 'unknown';
+  }
+
+  private static estimateCompanySize(emailCount: number): string {
+    if (emailCount > 100) return 'large';
+    if (emailCount > 20) return 'medium';
+    return 'small';
   }
 
   private static async getSocialProfiles(companyName: string) {

@@ -108,6 +108,8 @@ interface ProspectionState {
   // Suppression de: error: string | null;
 }
 
+// Ajouter ces nouvelles actions au store existant
+
 interface ProspectionActions {
   // Actions CRUD de base
   loadProspects: () => Promise<void>;
@@ -125,83 +127,67 @@ interface ProspectionActions {
   bulkUpdateStatus: (prospectIds: string[], status: Prospect['status']) => Promise<void>;
   getOptimalContactTime: (prospectId: string) => Promise<string>;
   trackEmailEngagement: (prospectId: string, action: 'open' | 'click' | 'reply') => Promise<void>;
+  
+  // Nouvelles actions pour l'import automatisé - SIGNATURE SEULEMENT
+  importProspectsFromApi: (criteria: any) => Promise<any[]>;
+  validateProspectData: (prospect: any) => boolean;
+  getApiUsageStats: () => Promise<any>;
+  scheduleAutoImport: (criteria: any, frequency: string) => Promise<void>;
 }
 
-// Segments par défaut
+// Constantes manquantes
 const DEFAULT_SEGMENTS: ProspectSegment[] = [
   {
-    id: 'music_industry',
+    id: 'music',
     name: 'Industrie Musicale',
     criteria: {
       industry: ['music', 'entertainment'],
-      project_type: ['music_video', 'concert', 'documentary']
-    },
-    email_frequency: 5,
-    conversion_rate: 0.35
-  },
-  {
-    id: 'luxury_brands',
-    name: 'Marques de Luxe',
-    criteria: {
-      industry: ['luxury', 'fashion', 'jewelry'],
-      budget_range: 'high',
-      project_type: ['commercial', 'brand_content']
-    },
-    email_frequency: 7,
-    conversion_rate: 0.28
-  },
-  {
-    id: 'sports_marketing',
-    name: 'Marketing Sportif',
-    criteria: {
-      industry: ['sports', 'fitness'],
-      project_type: ['commercial', 'event_coverage']
-    },
-    email_frequency: 4,
-    conversion_rate: 0.22
-  },
-  {
-    id: 'advertising_agencies',
-    name: 'Agences de Publicité',
-    criteria: {
-      industry: ['advertising', 'marketing'],
-      company_size: 'medium',
-      project_type: ['commercial', 'corporate']
+      project_type: ['album_cover', 'music_video', 'concert_poster']
     },
     email_frequency: 7,
     conversion_rate: 0.15
   },
   {
-    id: 'startups',
-    name: 'Startups & PME',
+    id: 'advertising',
+    name: 'Publicité & Marketing',
     criteria: {
-      company_size: 'small',
-      budget_range: 'medium',
-      urgency_level: 'high'
+      industry: ['advertising', 'marketing'],
+      project_type: ['campaign', 'branding', 'social_media']
     },
-    email_frequency: 3,
+    email_frequency: 5,
+    conversion_rate: 0.20
+  },
+  {
+    id: 'luxury',
+    name: 'Marques de Luxe',
+    criteria: {
+      industry: ['luxury', 'fashion'],
+      budget_range: 'high',
+      project_type: ['product_photography', 'brand_identity']
+    },
+    email_frequency: 10,
     conversion_rate: 0.25
   },
   {
-    id: 'creative_agencies',
-    name: 'Agences Créatives',
+    id: 'sports',
+    name: 'Sport & Fitness',
     criteria: {
-      industry: ['advertising', 'marketing', 'design'],
-      project_type: ['creative', 'artistic']
+      industry: ['sports', 'fitness'],
+      project_type: ['event_coverage', 'athlete_portraits']
     },
-    email_frequency: 5,
-    conversion_rate: 0.30
+    email_frequency: 7,
+    conversion_rate: 0.18
   }
 ];
 
-// Constantes pour le scoring
 const ENGAGEMENT_BOOST = {
-  open: 1,
-  click: 3,
-  reply: 5
-} as const;
+  open: 5,
+  click: 10,
+  reply: 20
+};
 
-export const useProspectionStore = create<ProspectionState & ProspectionActions>((set, get) => ({
+// Dans l'implémentation du store
+const useProspectionStore = create<ProspectionState & ProspectionActions>((set, get) => ({
   prospects: [],
   segments: DEFAULT_SEGMENTS,
   metrics: {
@@ -345,44 +331,73 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
       async () => {
         const prospects = get().prospects;
         
-        const segmentMetrics = {
-          advertising: prospects.filter(p => p.segment_targeting?.includes('advertising')).length,
-          music: prospects.filter(p => p.segment_targeting?.includes('music')).length,
-          luxury: prospects.filter(p => p.segment_targeting?.includes('luxury')).length,
-          sports: prospects.filter(p => p.segment_targeting?.includes('sports')).length
-        };
-        
-        // Calculs de performance réels
+        // Calculs dynamiques basés sur les données réelles
         const totalProspects = prospects.length;
         const qualifiedProspects = prospects.filter(p => (p.lead_score || 0) >= 60).length;
         const wonProspects = prospects.filter(p => p.status === 'closed_won').length;
         const conversionRate = totalProspects > 0 ? wonProspects / totalProspects : 0;
         
-        // Croissance mensuelle réelle
+        // Croissance mensuelle calculée dynamiquement
         const lastMonth = new Date();
         lastMonth.setMonth(lastMonth.getMonth() - 1);
         const recentProspects = prospects.filter(p => new Date(p.created_at) > lastMonth).length;
         const monthlyGrowth = totalProspects > 0 ? recentProspects / totalProspects : 0;
         
-        // Valeur pipeline basée sur les segments
+        // Segmentation dynamique basée sur les données enrichies
+        const segmentMetrics = {
+          advertising: prospects.filter(p => 
+            p.enriched_data?.company_info?.industry?.includes('advertising') ||
+            p.segment_targeting?.includes('advertising')
+          ).length,
+          music: prospects.filter(p => 
+            p.enriched_data?.company_info?.industry?.includes('music') ||
+            p.segment_targeting?.includes('music')
+          ).length,
+          luxury: prospects.filter(p => 
+            p.enriched_data?.company_info?.industry?.includes('luxury') ||
+            p.segment_targeting?.includes('luxury')
+          ).length,
+          sports: prospects.filter(p => 
+            p.enriched_data?.company_info?.industry?.includes('sports') ||
+            p.segment_targeting?.includes('sports')
+          ).length
+        };
+        
+        // Valeur pipeline calculée dynamiquement
         const pipelineValue = prospects.reduce((total, prospect) => {
+          const leadScore = prospect.lead_score || 0;
           const segment = prospect.segment_targeting?.[0] || 'general';
-          const baseValue = {
-            music: 8000,
-            advertising: 12000,
-            luxury: 15000,
-            sports: 10000,
-            general: 5000
-          }[segment] || 5000;
           
-          return total + (baseValue * (prospect.lead_score || 0) / 100);
+          // Valeurs de base ajustées selon le segment et le score
+          const segmentMultipliers = {
+            music: 1.0,
+            advertising: 1.5,
+            luxury: 2.0,
+            sports: 1.2,
+            general: 0.8
+          };
+          
+          const baseValue = 5000; // Valeur de base
+          const multiplier = segmentMultipliers[segment as keyof typeof segmentMultipliers] || 0.8;
+          
+          return total + (baseValue * multiplier * (leadScore / 100));
         }, 0);
+        
+        // Temps de réponse moyen calculé à partir des données réelles
+        const avgResponseTime = prospects
+          .filter(p => p.last_contact_date && p.created_at)
+          .reduce((total, prospect, _, arr) => {
+            const created = new Date(prospect.created_at).getTime();
+            const contacted = new Date(prospect.last_contact_date!).getTime();
+            const diffHours = (contacted - created) / (1000 * 60 * 60);
+            return total + diffHours / arr.length;
+          }, 0) || 24;
     
         set({
           metrics: {
             total_prospects: totalProspects,
             conversion_rate: conversionRate,
-            avg_response_time: 24,
+            avg_response_time: Math.round(avgResponseTime),
             pipeline_value: Math.round(pipelineValue),
             monthly_growth: monthlyGrowth,
             segment_breakdown: segmentMetrics,
@@ -481,5 +496,85 @@ export const useProspectionStore = create<ProspectionState & ProspectionActions>
       engagement_score: newScore,
       last_contact_date: new Date().toISOString()
     });
+  },
+
+  // Nouvelles actions pour l'import automatisé
+  importProspectsFromApi: async (criteria: any) => {
+    const result = await errorUtils.withErrorHandling(
+      async () => {
+        // Intégration avec ProspectApiService au lieu de données mockées
+        const { ProspectApiService } = await import('../lib/prospectApiService');
+        
+        // Utiliser les vrais critères de recherche - FORMAT CORRIGÉ
+        const prospects = await ProspectApiService.fetchProspects({
+          limit: criteria.limit || 50,
+          quickFilters: {
+            industry: criteria.industry || undefined,
+            location: criteria.location || undefined,
+            companySize: criteria.companySize || undefined
+          },
+          keywords: criteria.keywords ? criteria.keywords.split(',').map((k: string) => k.trim()) : undefined
+        });
+        
+        // Validation et nettoyage des données
+        const validProspects = prospects.filter(p => get().validateProspectData(p));
+        
+        // Import en base avec transformation des données
+        for (const prospect of validProspects) {
+          const transformedProspect = {
+            email: prospect.email,
+            first_name: prospect.first_name,
+            last_name: prospect.last_name,
+            company_name: prospect.company_name,
+            position: prospect.position,
+            source: 'api_import',
+            status: 'new' as const,
+            lead_score: prospect.lead_score || 0,
+            // Suppression de enriched_data car elle n'existe pas dans le type retourné
+            // enriched_data: prospect.enriched_data
+          };
+          await get().saveProspect(transformedProspect);
+        }
+        
+        // Recharger la liste
+        await get().loadProspects();
+        
+        return validProspects;
+      },
+      'Erreur lors de l\'import automatisé'
+    );
+    
+    // Retourner un tableau vide si le résultat est null
+    return result || [];
+  },
+
+  validateProspectData: (prospect: any) => {
+    return !!(
+      prospect.email && 
+      prospect.email.includes('@') && 
+      prospect.company_name && 
+      prospect.first_name
+    );
+  },
+
+  getApiUsageStats: async () => {
+    // Récupérer les stats d'utilisation des APIs
+    const { data } = await supabase
+      .from('api_usage_logs')
+      .select('*')
+      .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString());
+    
+    return {
+      monthlyUsage: data?.length || 0,
+      remainingQuota: 95 - (data?.length || 0),
+      lastImport: data?.[0]?.created_at
+    };
+  },
+
+  scheduleAutoImport: async (criteria: any, frequency: string) => {
+    // Implémentation future pour la planification automatique
+    console.log('Auto import scheduled:', { criteria, frequency });
   }
 }));
+
+export default useProspectionStore;

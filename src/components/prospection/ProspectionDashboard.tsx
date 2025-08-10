@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useProspectionStore } from '../../stores/prospectionStore';
+import useProspectionStore from '../../stores/prospectionStore';
 import ProspectsList from './ProspectsList';
 import ProspectForm from './ProspectForm';
 import ProspectDetails from './ProspectDetails';
@@ -11,8 +11,9 @@ import {
   Users, Mail, BarChart3, FileText, Menu, X, 
   TrendingUp, Target, Zap, Bell, Bot 
 } from 'lucide-react';
+import AutoProspectionPanel from './AutoProspectionPanel';
 
-type ActiveTab = 'list' | 'form' | 'details' | 'campaign' | 'stats' | 'templates' | 'template-form' | 'automation';
+type ActiveTab = 'list' | 'form' | 'details' | 'campaign' | 'stats' | 'templates' | 'template-form' | 'automation' | 'import';
 
 const ProspectionDashboard = () => {
   const { loadProspects, prospects } = useProspectionStore();
@@ -80,6 +81,7 @@ const ProspectionDashboard = () => {
 
   const tabs = [
     { id: 'list', label: 'Prospects', icon: Users },
+    { id: 'import', label: 'Import Auto', icon: Zap }, // Nouveau tab
     { id: 'campaign', label: 'Campagnes', icon: Mail },
     { id: 'stats', label: 'Statistiques', icon: BarChart3 },
     { id: 'templates', label: 'Templates', icon: FileText },
@@ -249,85 +251,101 @@ const ProspectionDashboard = () => {
 
         {/* Contenu principal */}
         <div className="bg-gray-800/30 backdrop-blur-sm rounded-2xl border border-gray-700/50 overflow-hidden">
-          {activeTab === 'list' && (
-            <div className="p-6">
-              <ProspectsList
-                onViewDetails={handleViewDetails}
-                onEditProspect={handleEditProspect}
-                onAddProspect={handleAddProspect}
-              />
-            </div>
-          )}
-          
-          {activeTab === 'form' && (
-            <div className="p-6">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-white mb-2">
-                  {editingProspectId ? 'Modifier le prospect' : 'Ajouter un prospect'}
-                </h2>
-                <p className="text-gray-400">
-                  {editingProspectId ? 'Mettez à jour les informations du prospect' : 'Créez un nouveau prospect dans votre pipeline'}
-                </p>
+          <div className="p-6">
+            {activeTab === 'list' && (
+              <div>
+                <ProspectsList
+                  onViewDetails={handleViewDetails}
+                  onEditProspect={handleEditProspect}
+                  onAddProspect={handleAddProspect}
+                />
               </div>
-              <ProspectForm
-                prospectId={editingProspectId || undefined}
-                onClose={handleCloseForm}
-              />
-            </div>
-          )}
-          
-          {activeTab === 'details' && selectedProspectId && (
-            <div className="p-6">
-              <ProspectDetails
-                prospectId={selectedProspectId}
-                onClose={handleCloseDetails}
-                onEdit={handleEditFromDetails}
-              />
-            </div>
-          )}
-          
-          {activeTab === 'campaign' && (
-            <div className="p-6">
-              <EmailCampaign />
-            </div>
-          )}
-          
-          {activeTab === 'stats' && (
-            <div className="p-6">
-              <EmailStatsDashboard />
-            </div>
-          )}
-          
-          {activeTab === 'templates' && (
-            <div className="p-6">
-              <TemplateManager 
-                activeTab="list"
-                onTabChange={(tab) => {
-                  if (tab === 'form') {
-                    setActiveTab('template-form');
-                  }
-                }}
-                onEditTemplate={handleEditTemplate}
-                onAddTemplate={handleAddTemplate}
-              />
-            </div>
-          )}
-          
-          {activeTab === 'template-form' && (
-            <div className="p-6">
-              <TemplateManager 
-                activeTab="form"
-                editingTemplateId={editingTemplateId}
-                onCloseForm={handleCloseTemplateForm}
-              />
-            </div>
-          )}
+            )}
+            
+            {activeTab === 'import' && (
+              <div>
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-white mb-2">
+                    Prospection Automatisée
+                  </h2>
+                  <p className="text-gray-400">
+                    Importez automatiquement des prospects qualifiés via des APIs publiques gratuites
+                  </p>
+                </div>
+                <AutoProspectionPanel />
+              </div>
+            )}
+            
+            {activeTab === 'form' && (
+              <div className="p-6">
+                <div className="mb-6">
+                  <h2 className="text-2xl font-bold text-white mb-2">
+                    {editingProspectId ? 'Modifier le prospect' : 'Ajouter un prospect'}
+                  </h2>
+                  <p className="text-gray-400">
+                    {editingProspectId ? 'Mettez à jour les informations du prospect' : 'Créez un nouveau prospect dans votre pipeline'}
+                  </p>
+                </div>
+                <ProspectForm
+                  prospectId={editingProspectId || undefined}
+                  onClose={handleCloseForm}
+                />
+              </div>
+            )}
+            
+            {activeTab === 'details' && selectedProspectId && (
+              <div className="p-6">
+                <ProspectDetails
+                  prospectId={selectedProspectId}
+                  onClose={handleCloseDetails}
+                  onEdit={handleEditFromDetails}
+                />
+              </div>
+            )}
+            
+            {activeTab === 'campaign' && (
+              <div className="p-6">
+                <EmailCampaign />
+              </div>
+            )}
+            
+            {activeTab === 'stats' && (
+              <div className="p-6">
+                <EmailStatsDashboard />
+              </div>
+            )}
+            
+            {activeTab === 'templates' && (
+              <div className="p-6">
+                <TemplateManager 
+                  activeTab="list"
+                  onTabChange={(tab) => {
+                    if (tab === 'form') {
+                      setActiveTab('template-form');
+                    }
+                  }}
+                  onEditTemplate={handleEditTemplate}
+                  onAddTemplate={handleAddTemplate}
+                />
+              </div>
+            )}
+            
+            {activeTab === 'template-form' && (
+              <div className="p-6">
+                <TemplateManager 
+                  activeTab="form"
+                  editingTemplateId={editingTemplateId}
+                  onCloseForm={handleCloseTemplateForm}
+                />
+              </div>
+            )}
 
-          {activeTab === 'automation' && (
-            <div className="p-6">
-              <AutomationDashboard />
-            </div>
-          )}
+            {activeTab === 'automation' && (
+              <div className="p-6">
+                <AutomationDashboard />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

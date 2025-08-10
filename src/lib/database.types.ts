@@ -150,6 +150,108 @@ export interface Database {
           linkedin_url?: string | null
         }
       }
+      api_usage_logs: {
+        Row: {
+          id: string
+          provider_name: string
+          endpoint: string
+          request_count: number
+          success: boolean
+          error_message: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          provider_name: string
+          endpoint: string
+          request_count?: number
+          success?: boolean
+          error_message?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          provider_name?: string
+          endpoint?: string
+          request_count?: number
+          success?: boolean
+          error_message?: string | null
+          created_at?: string
+        }
+      }
+      prospect_sequences: {
+        Row: {
+          id: string
+          prospect_id: string
+          sequence_id: string
+          status: 'active' | 'paused' | 'completed' | 'cancelled'
+          current_step: number
+          started_at: string
+          completed_at: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          prospect_id: string
+          sequence_id: string
+          status?: 'active' | 'paused' | 'completed' | 'cancelled'
+          current_step?: number
+          started_at?: string
+          completed_at?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          prospect_id?: string
+          sequence_id?: string
+          status?: 'active' | 'paused' | 'completed' | 'cancelled'
+          current_step?: number
+          started_at?: string
+          completed_at?: string | null
+          created_at?: string
+        }
+      }
+      scheduled_emails: {
+        Row: {
+          id: string
+          prospect_id: string
+          template_id: string
+          sequence_id: string | null
+          subject: string
+          content: string
+          scheduled_for: string
+          sent_at: string | null
+          status: 'pending' | 'sent' | 'failed' | 'cancelled'
+          error_message: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          prospect_id: string
+          template_id: string
+          sequence_id?: string | null
+          subject: string
+          content: string
+          scheduled_for: string
+          sent_at?: string | null
+          status?: 'pending' | 'sent' | 'failed' | 'cancelled'
+          error_message?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          prospect_id?: string
+          template_id?: string
+          sequence_id?: string | null
+          subject?: string
+          content?: string
+          scheduled_for?: string
+          sent_at?: string | null
+          status?: 'pending' | 'sent' | 'failed' | 'cancelled'
+          error_message?: string | null
+          created_at?: string
+        }
+      }
     }
     Views: {
       [_ in never]: never
