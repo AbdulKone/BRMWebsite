@@ -101,7 +101,7 @@ const ProjectsAdmin = () => {
     const filePath = `projects/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
-      .from('images')
+      .from('media')  // ✅ Nom correct du bucket
       .upload(filePath, file);
 
     if (uploadError) {
@@ -109,7 +109,7 @@ const ProjectsAdmin = () => {
     }
 
     const { data } = supabase.storage
-      .from('images')
+      .from('media')  // ✅ Nom correct du bucket
       .getPublicUrl(filePath);
 
     return data.publicUrl;
