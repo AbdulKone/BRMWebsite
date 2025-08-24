@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useProspectionStore } from '../../stores/prospectionStore';
+import useProspectionStore from '../../stores/prospectionStore';
 import { useErrorStore } from '../../stores/errorStore';
 import { X, Building, User, Mail, Globe, Linkedin, FileText, Tag } from 'lucide-react';
 
