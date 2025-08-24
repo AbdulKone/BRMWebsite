@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useProspectionStore } from '../../stores/prospectionStore';
+import useProspectionStore from '../../stores/prospectionStore';
 import { useErrorStore } from '../../stores/errorStore';
 import { Search, Filter, Plus, Eye, Edit, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -25,7 +25,7 @@ const STATUS_CONFIG = {
 } as const;
 
 const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: ProspectsListProps) => {
-  const { prospects, loading, error, deleteProspect } = useProspectionStore();
+  const { prospects, loading, deleteProspect } = useProspectionStore(); // ✅ Removed 'error'
   const { handleError, handleSuccess } = useErrorStore();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusType>('all');
@@ -96,14 +96,14 @@ const ProspectsList = ({ onViewDetails, onEditProspect, onAddProspect }: Prospec
     );
   }
 
-  if (error) {
-    return (
-      <div className="bg-red-900 border border-red-700 text-red-100 px-4 py-3 rounded">
-        <p className="font-medium">Erreur</p>
-        <p className="text-sm">{error}</p>
-      </div>
-    );
-  }
+  // Also remove the error handling section around lines 99-103:
+  // if (error) {
+  //   return (
+  //     <div className="text-center py-8">
+  //       <p className="text-sm">{error}</p>
+  //     </div>
+  //   );
+  // }
 
   return (
     <div className="space-y-6">
