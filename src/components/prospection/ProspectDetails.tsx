@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { useProspectionStore } from '../../stores/prospectionStore';
+import useProspectionStore from '../../stores/prospectionStore';
 import { useErrorStore } from '../../stores/errorStore';
 import { supabase } from '../../lib/supabase';
 import { emailSequences, startEmailSequence, stopEmailSequence } from '../../data/emailSequences';

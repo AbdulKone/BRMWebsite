@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useProspectionStore } from '../../stores/prospectionStore';
+import useProspectionStore from '../../stores/prospectionStore';
 import { supabase } from '../../lib/supabase';
 import { EmailTemplate } from '../../data/types/emailTypes';
 import { useErrorStore, errorUtils } from '../../stores/errorStore';

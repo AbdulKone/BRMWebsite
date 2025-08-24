@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useProspectionStore } from '../../stores/prospectionStore';
+import useProspectionStore from '../../stores/prospectionStore';
 import { 
   TrendingUp, Users, Target, 
   Calendar, Clock, DollarSign, Zap, AlertTriangle 

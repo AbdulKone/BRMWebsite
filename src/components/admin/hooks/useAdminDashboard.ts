@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAdminStore } from '../../../stores/adminStore';
 import { useContentStore } from '../../../stores/contentStore';
-import { useProspectionStore } from '../../../stores/prospectionStore';
+import useProspectionStore from '../../../stores/prospectionStore';
 import { navigationItems } from '../constants/navigationItems';
 import { useErrorStore } from '../../../stores/errorStore';
 
