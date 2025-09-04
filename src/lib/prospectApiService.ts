@@ -317,12 +317,9 @@ export class ProspectApiService {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          // Ligne 312, réduire la limite par défaut
-          body: JSON.stringify({
-            action: 'discover',
-            query: query,
-            limit: 10 // Réduire de 3 à 10 pour optimiser
-          })
+          action: 'discover',
+          query: query,
+          limit: 10
         })
       });
       
