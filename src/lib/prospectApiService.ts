@@ -18,6 +18,26 @@ interface ApiProvider {
   active: boolean;
 }
 
+// Constantes centralisées
+const CONFIG = {
+  MAX_RESULTS: 50,
+  MAX_API_CALLS: 100,
+  DOMAIN_LIMIT: 3,
+  DOMAIN_RESULTS_LIMIT: 15,
+  CACHE_DURATION: {
+    DOMAIN: 24 * 60 * 60 * 1000, // 24h
+    COMPANY: 24 * 60 * 60 * 1000, // 24h
+    DYNAMIC: 12 * 60 * 60 * 1000, // 12h
+    NATURAL_LANGUAGE: 6 * 60 * 60 * 1000 // 6h
+  },
+  API_CALLS: {
+    DOMAIN: 5,
+    COMPANY: 3,
+    DYNAMIC: 10,
+    NATURAL_LANGUAGE: 2
+  }
+} as const;
+
 export class ProspectApiService {
   private static providers: ApiProvider[] = [];
   private static initialized = false;
@@ -81,17 +101,30 @@ export class ProspectApiService {
 
   // Validation améliorée des prospects
   private static async validateProspects(prospects: HunterProspect[]): Promise<HunterProspect[]> {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
     return prospects
       .filter(prospect => {
-        return prospect.email && 
-               prospect.email.includes('@') && 
-               prospect.confidence >= 60 && 
-               prospect.email.length > 5;
+        // Validation email plus robuste
+        if (!prospect.email || !emailRegex.test(prospect.email)) return false;
+        
+        // Validation confidence
+        if (typeof prospect.confidence !== 'number' || prospect.confidence < 60) return false;
+        
+        // Validation longueur email
+        if (prospect.email.length < 6 || prospect.email.length > 254) return false;
+        
+        return true;
       })
       .map(prospect => ({
         ...prospect,
         score: this.calculateScore(prospect),
-        validated_at: new Date().toISOString()
+        validated_at: new Date().toISOString(),
+        // Normalisation des données
+        email: prospect.email.toLowerCase().trim(),
+        first_name: prospect.first_name?.trim(),
+        last_name: prospect.last_name?.trim(),
+        company: prospect.company?.trim()
       }))
       .sort((a, b) => (b.score || 0) - (a.score || 0));
   }
@@ -112,11 +145,26 @@ export class ProspectApiService {
 
   // Déduplication améliorée
   private static deduplicateProspects(prospects: HunterProspect[]): HunterProspect[] {
-    const seen = new Set<string>();
+    const seenEmails = new Set<string>();
+    const seenCombinations = new Set<string>();
+    
     return prospects.filter(prospect => {
-      const key = `${prospect.email.toLowerCase()}_${prospect.company?.toLowerCase() || ''}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
+      const email = prospect.email.toLowerCase();
+      const company = prospect.company?.toLowerCase() || '';
+      const combination = `${email}_${company}`;
+      
+      // Déduplication par email d'abord
+      if (seenEmails.has(email)) {
+        return false;
+      }
+      
+      // Puis par combinaison email + entreprise
+      if (seenCombinations.has(combination)) {
+        return false;
+      }
+      
+      seenEmails.add(email);
+      seenCombinations.add(combination);
       return true;
     });
   }
@@ -131,31 +179,62 @@ export class ProspectApiService {
   // API Hunter.io optimisée avec cache
   private static async callHunterApi(criteria: ProspectSearchCriteria): Promise<HunterProspect[]> {
     const results: HunterProspect[] = [];
+    let apiCallsUsed = 0;
     
-    if (criteria.domains && criteria.domains.length > 0) {
-      for (const domain of criteria.domains.slice(0, 3)) {
-        const domainResults = await this.searchHunterByDomain(domain);
-        results.push(...domainResults);
-        if (results.length >= 15) break;
+    const canMakeApiCall = (requestedCalls: number): boolean => {
+      return (apiCallsUsed + requestedCalls) <= CONFIG.MAX_API_CALLS;
+    };
+    
+    const addResults = (newResults: HunterProspect[], callsUsed: number): boolean => {
+      results.push(...newResults);
+      apiCallsUsed += callsUsed;
+      return results.length >= CONFIG.MAX_RESULTS;
+    };
+    
+    // Recherche par domaines (priorité haute)
+    if (criteria.domains?.length && results.length < CONFIG.MAX_RESULTS) {
+      for (const domain of criteria.domains.slice(0, CONFIG.DOMAIN_LIMIT)) {
+        if (!canMakeApiCall(CONFIG.API_CALLS.DOMAIN)) break;
+        
+        try {
+          const domainResults = await this.searchHunterByDomain(domain);
+          if (addResults(domainResults, CONFIG.API_CALLS.DOMAIN)) break;
+          if (results.length >= CONFIG.DOMAIN_RESULTS_LIMIT) break;
+        } catch (error) {
+          console.warn(`Échec recherche domaine ${domain}:`, error);
+          continue;
+        }
       }
     }
     
-    if (criteria.companyName && results.length < 10) {
-      const companyResults = await this.searchHunterByCompany(criteria.companyName);
-      results.push(...companyResults);
+    // Recherche par critères dynamiques
+    if ((criteria.keywords?.length || criteria.quickFilters) && 
+        results.length < CONFIG.MAX_RESULTS && 
+        canMakeApiCall(CONFIG.API_CALLS.DYNAMIC)) {
+      try {
+        const dynamicResults = await this.searchHunterByDynamicCriteria(criteria);
+        addResults(dynamicResults, CONFIG.API_CALLS.DYNAMIC);
+      } catch (error) {
+        console.warn('Échec recherche critères dynamiques:', error);
+      }
     }
     
-    if (criteria.keywords && criteria.keywords.length > 0 && results.length < 15) {
-      const dynamicResults = await this.searchHunterByDynamicCriteria(criteria);
-      results.push(...dynamicResults);
+    // Recherche en langage naturel
+    if (criteria.naturalLanguageQuery && 
+        results.length < CONFIG.MAX_RESULTS && 
+        canMakeApiCall(CONFIG.API_CALLS.NATURAL_LANGUAGE)) {
+      try {
+        const nlResults = await this.searchHunterByNaturalLanguage(criteria.naturalLanguageQuery);
+        addResults(nlResults, CONFIG.API_CALLS.NATURAL_LANGUAGE);
+      } catch (error) {
+        console.warn('Échec recherche langage naturel:', error);
+      }
     }
     
-    if (criteria.naturalLanguageQuery && results.length < 10) {
-      const nlResults = await this.searchHunterByNaturalLanguage(criteria.naturalLanguageQuery);
-      results.push(...nlResults);
-    }
+    const finalResults = results.slice(0, CONFIG.MAX_RESULTS);
+    console.log(`✅ API Hunter.io: ${finalResults.length} prospects trouvés (${apiCallsUsed}/${CONFIG.MAX_API_CALLS} appels API)`);
     
-    return results;
+    return finalResults;
   }
 
   // Recherche par domaine optimisée avec cache
@@ -205,74 +284,13 @@ export class ProspectApiService {
         linkedin: email.linkedin
       }));
       
-      hunterCache.set(cacheKey, results, 24 * 60 * 60 * 1000);
+      hunterCache.set(cacheKey, results, CONFIG.CACHE_DURATION.DOMAIN);
       apiUsageMonitor.incrementUsage('api', domain);
       
       console.log(`✅ API Hunter.io: ${results.length} prospects trouvés pour ${domain}`);
       return results;
     } catch (error: unknown) {
       console.error(`Erreur recherche domaine ${domain}:`, error);
-      return [];
-    }
-  }
-
-  // Recherche par entreprise optimisée avec cache
-  private static async searchHunterByCompany(companyName: string): Promise<HunterProspect[]> {
-    const cacheKey = hunterCache.generateKey('company-search', { companyName });
-    
-    const cached = hunterCache.get(cacheKey);
-    if (cached) {
-      apiUsageMonitor.incrementUsage('cache', undefined, companyName);
-      return cached;
-    }
-    
-    if (!apiUsageMonitor.canMakeRequest()) {
-      console.warn('⚠️ Quota quotidien atteint, utilisation du cache uniquement');
-      return [];
-    }
-    
-    try {
-      const response = await fetch('/api/hunter-proxy', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'discover',
-          query: `company name: ${companyName}`,
-          limit: 3
-        })
-      });
-      
-      const data: HunterDiscoverResponse = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Erreur API Hunter.io Discover');
-      }
-      
-      const prospects: HunterProspect[] = [];
-      
-      if (data.data?.companies) {
-        for (const company of data.data.companies.slice(0, 2)) {
-          if (company.domain) {
-            const domainProspects = await this.searchHunterByDomain(company.domain);
-            prospects.push(...domainProspects.map((p) => ({
-              ...p,
-              company: company.name || companyName,
-              industry: company.industry,
-              company_size: company.size
-            })));
-          }
-        }
-      }
-      
-      hunterCache.set(cacheKey, prospects, 24 * 60 * 60 * 1000);
-      apiUsageMonitor.incrementUsage('api', undefined, companyName);
-      
-      console.log(`✅ API Hunter.io: ${prospects.length} prospects trouvés pour ${companyName}`);
-      return prospects;
-    } catch (error: unknown) {
-      console.error(`Erreur recherche entreprise ${companyName}:`, error);
       return [];
     }
   }
@@ -346,7 +364,7 @@ export class ProspectApiService {
         }
       }
       
-      hunterCache.set(cacheKey, prospects, 12 * 60 * 60 * 1000);
+      hunterCache.set(cacheKey, prospects, CONFIG.CACHE_DURATION.DYNAMIC);
       apiUsageMonitor.incrementUsage('api');
       
       console.log(`✅ API Hunter.io: ${prospects.length} prospects trouvés pour critères dynamiques`);
@@ -407,7 +425,7 @@ export class ProspectApiService {
         }
       }
       
-      hunterCache.set(cacheKey, prospects, 6 * 60 * 60 * 1000);
+      hunterCache.set(cacheKey, prospects, CONFIG.CACHE_DURATION.NATURAL_LANGUAGE);
       apiUsageMonitor.incrementUsage('api');
       
       console.log(`✅ API Hunter.io: ${prospects.length} prospects trouvés pour requête naturelle`);
