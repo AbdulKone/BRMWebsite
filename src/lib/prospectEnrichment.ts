@@ -67,21 +67,23 @@ export class ProspectEnrichmentService {
   }
 
   private static async getCompanyInfoFromHunter(domain: string) {
-    const apiKey = import.meta.env.VITE_HUNTER_API_KEY;
-    
-    if (!apiKey) {
-      console.warn('Clé API Hunter.io manquante');
-      return this.getFallbackCompanyInfo(domain);
-    }
-
     try {
-      // Appel à l'API Hunter.io pour obtenir des informations sur le domaine
-      const url = `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&api_key=${apiKey}&limit=1`;
-      const response = await fetch(url);
+      // Utilisation de l'endpoint sécurisé au lieu de l'API directe
+      const response = await fetch('/api/hunter-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          domain: domain,
+          action: 'domain-search'
+        })
+      });
+      
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.errors?.[0]?.details || 'Erreur API Hunter.io');
+        throw new Error(data.error || 'Erreur API Hunter.io');
       }
 
       // Extraction des informations de l'entreprise depuis Hunter.io

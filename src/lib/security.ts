@@ -127,3 +127,131 @@ export const cleanupRateLimitMap = (): void => {
 if (typeof window !== 'undefined') {
   setInterval(cleanupRateLimitMap, RATE_LIMIT_WINDOW);
 }
+
+// CSRF Protection
+let csrfToken: string | null = null;
+
+export const generateCSRFToken = (): string => {
+  // Generate a cryptographically secure random token
+  const array = new Uint8Array(32);
+  crypto.getRandomValues(array);
+  csrfToken = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+  
+  // Store in sessionStorage for client-side validation
+  if (typeof window !== 'undefined') {
+    sessionStorage.setItem('csrf_token', csrfToken);
+  }
+  
+  return csrfToken;
+};
+
+export const validateCSRFToken = (token: string): boolean => {
+  const storedToken = typeof window !== 'undefined' ? sessionStorage.getItem('csrf_token') : csrfToken;
+  
+  if (!storedToken || !token || storedToken !== token) {
+    return false;
+  }
+  
+  // Regenerate token after successful validation (one-time use)
+  generateCSRFToken();
+  return true;
+};
+
+// Input Sanitization
+export const sanitizeInput = (input: string): string => {
+  return input
+    .replace(/[<>"'&]/g, (match) => {
+      const entities: { [key: string]: string } = {
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#x27;',
+        '&': '&amp;'
+      };
+      return entities[match];
+    })
+    .trim();
+};
+
+// Email validation with security checks
+export const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  
+  // Basic format check
+  if (!emailRegex.test(email)) return false;
+  
+  // Additional security checks
+  if (email.length > 254) return false; // RFC 5321 limit
+  if (email.includes('..')) return false; // Consecutive dots
+  if (email.startsWith('.') || email.endsWith('.')) return false;
+  
+  return true;
+};
+
+// Password strength validation
+export const validatePasswordStrength = (password: string): { isValid: boolean; errors: string[] } => {
+  const errors: string[] = [];
+  
+  if (password.length < 8) {
+    errors.push('Le mot de passe doit contenir au moins 8 caractères');
+  }
+  
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Le mot de passe doit contenir au moins une majuscule');
+  }
+  
+  if (!/[a-z]/.test(password)) {
+    errors.push('Le mot de passe doit contenir au moins une minuscule');
+  }
+  
+  if (!/\d/.test(password)) {
+    errors.push('Le mot de passe doit contenir au moins un chiffre');
+  }
+  
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    errors.push('Le mot de passe doit contenir au moins un caractère spécial');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+// Content Security Policy helpers
+export const generateNonce = (): string => {
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return btoa(String.fromCharCode(...array));
+};
+
+// Session security
+export const validateSession = async (): Promise<boolean> => {
+  try {
+    const { data: { session }, error } = await supabase.auth.getSession();
+    
+    if (error || !session) return false;
+    
+    // Check if session is expired
+    const now = Math.floor(Date.now() / 1000);
+    if (session.expires_at && session.expires_at < now) {
+      await supabase.auth.signOut();
+      return false;
+    }
+    
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+// Secure headers validation
+export const validateSecureHeaders = (headers: Headers): boolean => {
+  const requiredHeaders = [
+    'x-content-type-options',
+    'x-frame-options',
+    'x-xss-protection'
+  ];
+  
+  return requiredHeaders.every(header => headers.has(header));
+};
