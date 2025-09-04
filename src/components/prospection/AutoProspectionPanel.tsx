@@ -1,19 +1,11 @@
 import { useState, useEffect } from 'react';
-import { ProspectApiService, type ProspectCriteria } from '../../lib/prospectApiService';
+import { ProspectApiService } from '../../lib/prospectApiService';
+import { type ProspectSearchCriteria } from '../../lib/types/hunterTypes';
 import useProspectionStore, { type Prospect } from '../../stores/prospectionStore';
 import { useErrorStore } from '../../stores/errorStore';
-import { Search, Download, Filter, Settings, Zap, Target, RefreshCw } from 'lucide-react';
+import { Search, Download, Zap, RefreshCw } from 'lucide-react';
 
-// Interface pour les critères de prospection (alignée avec ProspectCriteria)
-interface ProspectionCriteria {
-  industry?: string;
-  location?: string;
-  companySize?: string;
-  keywords?: string;
-  limit: number;
-}
-
-// Interface pour typer les prospects retournés par l'API
+// Interface pour typer les prospects retournés par l'API (étendue)
 interface ProspectData {
   email: string;
   first_name?: string;
@@ -23,6 +15,10 @@ interface ProspectData {
   source?: string;
   status?: Prospect['status'];
   lead_score?: number;
+  // Nouvelles propriétés enrichies
+  company_industry?: string;
+  company_size?: string;
+  company_location?: string;
 }
 
 // Interface pour les options dynamiques
@@ -37,12 +33,13 @@ const AutoProspectionPanel = () => {
   const { handleSuccess, handleError } = useErrorStore();
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingOptions, setIsLoadingOptions] = useState(true);
-  const [criteria, setCriteria] = useState<ProspectionCriteria>({
-    industry: '',
-    location: '',
-    companySize: '',
-    keywords: '',
-    limit: 25
+  const [criteria, setCriteria] = useState<ProspectSearchCriteria>({
+    limit: 25,
+    quickFilters: {
+      industry: '',
+      location: '',
+      companySize: ''
+    }
   });
   const [previewProspects, setPreviewProspects] = useState<ProspectData[]>([]);
   const [showPreview, setShowPreview] = useState(false);
@@ -95,42 +92,29 @@ const AutoProspectionPanel = () => {
   const handleSearch = async () => {
     setIsLoading(true);
     try {
-      // Conversion des critères vers le format attendu par le service
-      const searchCriteria: ProspectCriteria = {
-        limit: criteria.limit,
-        quickFilters: {
-          industry: criteria.industry || undefined,
-          location: criteria.location || undefined,
-          companySize: criteria.companySize || undefined
-        }
-      };
-
-      // Ajout des mots-clés si fournis
-      if (criteria.keywords && criteria.keywords.trim()) {
-        searchCriteria.keywords = criteria.keywords.split(',').map(k => k.trim());
-      }
-
-      // Recherche de prospects avec les critères actuels
-      const prospects = await ProspectApiService.fetchProspects(searchCriteria);
-
-      // Transformation des données pour correspondre à l'interface ProspectData
+      const prospects = await ProspectApiService.fetchProspects(criteria);
+  
       const transformedProspects: ProspectData[] = prospects.map(prospect => ({
         email: prospect.email,
         first_name: prospect.first_name,
         last_name: prospect.last_name,
-        company_name: prospect.company_name,
+        company_name: prospect.company,
         position: prospect.position,
         source: 'api_import',
         status: 'new' as Prospect['status'],
-        lead_score: prospect.lead_score || 50
+        lead_score: prospect.score || 50,
+        company_industry: prospect.industry,
+        company_size: prospect.company_size,
+        company_location: prospect.company
       }));
-
+  
       setPreviewProspects(transformedProspects);
       setShowPreview(true);
       handleSuccess(`${transformedProspects.length} prospects trouvés`);
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
       handleError('Erreur lors de la recherche', errorMessage);
+      console.error('Détails de l\'erreur:', error);
     } finally {
       setIsLoading(false);
     }
@@ -140,7 +124,6 @@ const AutoProspectionPanel = () => {
     setIsLoading(true);
     try {
       for (const prospect of selectedProspects) {
-        // Transformation pour correspondre au type Partial<Prospect>
         const prospectToSave: Partial<Prospect> = {
           email: prospect.email,
           first_name: prospect.first_name,
@@ -167,9 +150,7 @@ const AutoProspectionPanel = () => {
     }
   };
 
-  const handleRefreshOptions = () => {
-    loadFilterOptions();
-  };
+  // Suppression de handleRefreshOptions car elle fait doublon avec loadFilterOptions
 
   if (isLoadingOptions) {
     return (
@@ -198,7 +179,7 @@ const AutoProspectionPanel = () => {
         </div>
         <div className="flex items-center space-x-2">
           <button
-            onClick={handleRefreshOptions}
+            onClick={loadFilterOptions}
             className="p-2 text-gray-400 hover:text-white transition-colors"
             title="Actualiser les options"
           >
@@ -217,8 +198,14 @@ const AutoProspectionPanel = () => {
             Industrie
           </label>
           <select
-            value={criteria.industry}
-            onChange={(e) => setCriteria({...criteria, industry: e.target.value})}
+            value={criteria.quickFilters?.industry || ''}
+            onChange={(e) => setCriteria({
+              ...criteria,
+              quickFilters: {
+                ...criteria.quickFilters,
+                industry: e.target.value || undefined
+              }
+            })}
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
           >
             <option value="">Toutes les industries</option>
@@ -235,8 +222,14 @@ const AutoProspectionPanel = () => {
             Localisation
           </label>
           <select
-            value={criteria.location}
-            onChange={(e) => setCriteria({...criteria, location: e.target.value})}
+            value={criteria.quickFilters?.location || ''}
+            onChange={(e) => setCriteria({
+              ...criteria,
+              quickFilters: {
+                ...criteria.quickFilters,
+                location: e.target.value || undefined
+              }
+            })}
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
           >
             <option value="">Toutes les localisations</option>
@@ -253,8 +246,14 @@ const AutoProspectionPanel = () => {
             Taille d'entreprise
           </label>
           <select
-            value={criteria.companySize}
-            onChange={(e) => setCriteria({...criteria, companySize: e.target.value})}
+            value={criteria.quickFilters?.companySize || ''}
+            onChange={(e) => setCriteria({
+              ...criteria,
+              quickFilters: {
+                ...criteria.quickFilters,
+                companySize: e.target.value || undefined
+              }
+            })}
             className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"
           >
             <option value="">Toutes les tailles</option>
@@ -283,17 +282,55 @@ const AutoProspectionPanel = () => {
         </div>
       </div>
 
-      {/* Champ de mots-clés */}
+      {/* Champs de recherche avancée */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Mots-clés (optionnel)
+          </label>
+          <input
+            type="text"
+            value={criteria.keywords?.join(', ') || ''}
+            onChange={(e) => setCriteria({
+              ...criteria,
+              keywords: e.target.value ? e.target.value.split(',').map(k => k.trim()) : undefined
+            })}
+            placeholder="Ex: marketing, design, startup..."
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">
+            Nom d'entreprise (optionnel)
+          </label>
+          <input
+            type="text"
+            value={criteria.companyName || ''}
+            onChange={(e) => setCriteria({
+              ...criteria,
+              companyName: e.target.value || undefined
+            })}
+            placeholder="Ex: Google, Microsoft..."
+            className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400"
+          />
+        </div>
+      </div>
+
+      {/* Recherche en langage naturel */}
       <div className="mb-6">
         <label className="block text-sm font-medium text-gray-300 mb-2">
-          Mots-clés (optionnel)
+          Recherche en langage naturel (optionnel)
         </label>
-        <input
-          type="text"
-          value={criteria.keywords}
-          onChange={(e) => setCriteria({...criteria, keywords: e.target.value})}
-          placeholder="Ex: marketing, design, startup..."
-          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400"
+        <textarea
+          value={criteria.naturalLanguageQuery || ''}
+          onChange={(e) => setCriteria({
+            ...criteria,
+            naturalLanguageQuery: e.target.value || undefined
+          })}
+          placeholder="Ex: Startups françaises dans le domaine de la tech avec moins de 50 employés..."
+          rows={3}
+          className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white placeholder-gray-400 resize-none"
         />
       </div>
 
@@ -373,7 +410,7 @@ const ProspectPreview = ({ prospects, onImport, onCancel, isLoading }: ProspectP
       <div className="max-h-96 overflow-y-auto space-y-2 mb-4">
         {prospects.map((prospect, index) => (
           <div
-            key={index}
+            key={`${prospect.email}-${index}`}
             className={`p-3 rounded-lg border cursor-pointer transition-all ${
               selectedProspects.includes(prospect)
                 ? 'bg-blue-900/20 border-blue-500/50'
@@ -390,6 +427,26 @@ const ProspectPreview = ({ prospects, onImport, onCancel, isLoading }: ProspectP
                   {prospect.position} chez {prospect.company_name}
                 </div>
                 <div className="text-xs text-gray-500">{prospect.email}</div>
+                {/* Affichage des données enrichies */}
+                {(prospect.company_industry || prospect.company_size || prospect.company_location) && (
+                  <div className="flex items-center space-x-2 mt-1">
+                    {prospect.company_industry && (
+                      <span className="text-xs bg-purple-900/20 text-purple-400 px-2 py-1 rounded-full">
+                        {prospect.company_industry}
+                      </span>
+                    )}
+                    {prospect.company_size && (
+                      <span className="text-xs bg-blue-900/20 text-blue-400 px-2 py-1 rounded-full">
+                        {prospect.company_size}
+                      </span>
+                    )}
+                    {prospect.company_location && (
+                      <span className="text-xs bg-green-900/20 text-green-400 px-2 py-1 rounded-full">
+                        {prospect.company_location}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex items-center space-x-2">
                 <span className="text-xs bg-green-900/20 text-green-400 px-2 py-1 rounded-full">

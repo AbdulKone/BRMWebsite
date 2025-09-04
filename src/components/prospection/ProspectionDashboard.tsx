@@ -189,7 +189,7 @@ const ProspectionDashboard = () => {
         </div>
 
         {/* Navigation améliorée */}
-        {(activeTab === 'list' || activeTab === 'campaign' || activeTab === 'stats' || activeTab === 'templates' || activeTab === 'automation') && (
+        {(activeTab === 'list' || activeTab === 'campaign' || activeTab === 'stats' || activeTab === 'templates' || activeTab === 'automation' || activeTab === 'import') && (
           <>
             {/* Navigation desktop */}
             <div className="hidden md:flex space-x-2 mb-8 bg-gray-800/50 backdrop-blur-sm p-2 rounded-2xl border border-gray-700/50">

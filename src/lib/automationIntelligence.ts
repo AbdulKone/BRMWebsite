@@ -1,28 +1,47 @@
-export interface ConfigSuggestion {
-  type: 'optimization' | 'warning' | 'improvement';
-  title: string;
-  description: string;
-  action?: () => void;
-  priority: 'high' | 'medium' | 'low';
+import { ApiUsageStats, ProspectSearchCriteria } from './types/hunterTypes';
+
+interface AutomationConfig {
+  enabled: boolean;
+  criteria: ProspectSearchCriteria;
+  limits: {
+    daily: number;
+    monthly: number;
+  };
+  dailyLimit?: number;
+  workingHours?: {
+    start: string;
+    end: string;
+  };
 }
 
-export function getConfigSuggestions(stats: any, config: any): ConfigSuggestion[] {
+interface ConfigSuggestion {
+  type: 'optimization' | 'warning' | 'info';
+  message: string;
+  action?: string;
+  title?: string;
+  description?: string;
+  priority?: 'high' | 'medium' | 'low';
+}
+
+export function getConfigSuggestions(stats: ApiUsageStats, config: AutomationConfig): ConfigSuggestion[] {
   const suggestions: ConfigSuggestion[] = [];
 
-  // Suggestion basée sur le taux d'ouverture
-  if (stats?.openRate < 15) {
+  // Suggestion basée sur le taux de cache hit
+  if (stats?.usage?.cacheHitRate < 0.5) {
     suggestions.push({
       type: 'warning',
-      title: 'Taux d\'ouverture faible',
-      description: 'Considérez réduire la fréquence d\'envoi ou améliorer les objets d\'email',
+      message: 'Taux de cache faible',
+      title: 'Optimisation du cache',
+      description: 'Considérez ajuster les critères de recherche pour améliorer le cache',
       priority: 'high'
     });
   }
 
   // Suggestion basée sur la limite quotidienne
-  if (config?.dailyLimit > 100) {
+  if (config?.dailyLimit && config.dailyLimit > 100) {
     suggestions.push({
       type: 'optimization',
+      message: 'Limite quotidienne élevée',
       title: 'Limite quotidienne élevée',
       description: 'Une limite plus basse pourrait améliorer la délivrabilité',
       priority: 'medium'
@@ -33,7 +52,8 @@ export function getConfigSuggestions(stats: any, config: any): ConfigSuggestion[
   const workingHours = config?.workingHours;
   if (workingHours && (workingHours.end === '18:00' && workingHours.start === '09:00')) {
     suggestions.push({
-      type: 'improvement',
+      type: 'info',
+      message: 'Optimiser les heures d\'envoi',
       title: 'Optimiser les heures d\'envoi',
       description: 'Les emails envoyés entre 10h-11h et 14h-15h ont de meilleurs taux d\'ouverture',
       priority: 'low'
@@ -41,7 +61,9 @@ export function getConfigSuggestions(stats: any, config: any): ConfigSuggestion[
   }
 
   return suggestions.sort((a, b) => {
-    const priorityOrder = { high: 3, medium: 2, low: 1 };
-    return priorityOrder[b.priority] - priorityOrder[a.priority];
+    const priorityOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
+    const aPriority = a.priority || 'low';
+    const bPriority = b.priority || 'low';
+    return priorityOrder[bPriority] - priorityOrder[aPriority];
   });
 }

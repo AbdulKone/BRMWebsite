@@ -1,11 +1,13 @@
 // Types pour le service worker
 interface ServiceWorkerMessage {
   type: string;
-  payload?: any;
+  payload?: Record<string, unknown>;
 }
 
 interface CacheInfo {
-  cacheSize: number;
+  name: string;
+  size: number;
+  cacheSize?: number; // Ajout de la propriété manquante
 }
 
 interface NetworkStatus {
@@ -169,7 +171,8 @@ class ServiceWorkerManager {
       messageChannel.port1.onmessage = (event) => {
         clearTimeout(timeout);
         const data = event.data as CacheInfo;
-        resolve(data.cacheSize || 0);
+        // Utiliser 'size' au lieu de 'cacheSize' ou ajouter une vérification
+        resolve(data.cacheSize || data.size || 0);
       };
       
       const message: ServiceWorkerMessage = { type: 'GET_CACHE_SIZE' };

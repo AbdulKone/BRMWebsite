@@ -1,7 +1,15 @@
 import { supabase } from './supabase';
 import { useErrorStore } from '../stores/errorStore';
+import { hunterCache } from './hunterCache';
+import { apiUsageMonitor } from './apiUsageMonitor';
+import {
+  HunterProspect,
+  HunterDomainSearchResponse,
+  HunterDiscoverResponse,
+  ProspectSearchCriteria,
+  ApiUsageStats
+} from './types/hunterTypes';
 
-// Configuration des APIs publiques
 interface ApiProvider {
   name: string;
   endpoint: string;
@@ -10,28 +18,16 @@ interface ApiProvider {
   active: boolean;
 }
 
-// Interface simplifiée pour les critères de prospection
-export interface ProspectCriteria {
-  keywords?: string[];
-  domains?: string[];
-  limit?: number;
-  quickFilters?: {
-    industry?: string;
-    location?: string;
-    companySize?: string;
-    minConfidence?: number;
-  };
-}
-
 export class ProspectApiService {
   private static providers: ApiProvider[] = [];
+  private static initialized = false;
 
-  // Initialisation simplifiée
   static async initialize() {
+    if (this.initialized) return;
     await this.loadProviders();
+    this.initialized = true;
   }
 
-  // Chargement des providers depuis la base
   private static async loadProviders() {
     try {
       const { data, error } = await supabase
@@ -41,43 +37,38 @@ export class ProspectApiService {
 
       if (error) throw error;
 
-      this.providers = data || [
-        {
-          name: 'Hunter.io',
-          endpoint: '/api/hunter-proxy',
-          rateLimit: 25,
-          fields: ['email', 'first_name', 'last_name', 'position', 'company'],
-          active: true
-        }
-      ];
+      if (!data || data.length === 0) {
+        throw new Error('Aucun provider API configuré dans la base de données');
+      }
+
+      this.providers = data;
     } catch (error) {
-      console.warn('Utilisation des providers par défaut:', error);
-      this.providers = [
-        {
-          name: 'Hunter.io',
-          endpoint: '/api/hunter-proxy',
-          rateLimit: 25,
-          fields: ['email', 'first_name', 'last_name', 'position', 'company'],
-          active: true
-        }
-      ];
+      console.error('Erreur lors du chargement des providers:', error);
+      throw new Error('Impossible de charger les providers API depuis la base de données');
     }
   }
 
-  // Méthode principale de recherche simplifiée
-  static async fetchProspects(criteria: ProspectCriteria) {
+  // Méthode principale de recherche optimisée
+  static async fetchProspects(criteria: ProspectSearchCriteria): Promise<HunterProspect[]> {
     await this.initialize();
     
-    const prospects = [];
+    if (!apiUsageMonitor.canMakeRequest()) {
+      const remaining = apiUsageMonitor.getRemainingQuota();
+      throw new Error(`Quota quotidien atteint. Restant: ${remaining.daily} appels`);
+    }
+    
+    const prospects: HunterProspect[] = [];
     const { handleError } = useErrorStore.getState();
 
-    for (const provider of this.providers) {
+    const activeProviders = this.providers.slice(0, 1);
+
+    for (const provider of activeProviders) {
       try {
         const apiProspects = await this.callProvider(provider, criteria);
         const validatedProspects = await this.validateProspects(apiProspects);
         prospects.push(...validatedProspects);
         
-        if (prospects.length >= (criteria.limit || 50)) break;
+        if (prospects.length >= (criteria.limit || 25)) break;
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Erreur inconnue';
         handleError(`Erreur API ${provider.name}`, errorMessage);
@@ -85,88 +76,103 @@ export class ProspectApiService {
       }
     }
 
-    return prospects.slice(0, criteria.limit || 50);
+    return this.deduplicateProspects(prospects.slice(0, criteria.limit || 25));
   }
 
-  // Validation simplifiée des prospects
-  private static async validateProspects(prospects: any[]) {
-    const validated = [];
-    
-    for (const prospect of prospects) {
-      // Vérification des doublons en base
-      const { data: existing } = await supabase
-        .from('prospects')
-        .select('id')
-        .eq('email', prospect.email)
-        .single();
-      
-      if (existing) continue;
-      
-      // Validation des données essentielles
-      if (!prospect.email || !prospect.email.includes('@')) continue;
-      if (!prospect.company && !prospect.first_name) continue;
-      
-      validated.push({
-        email: prospect.email,
-        first_name: prospect.first_name || '',
-        last_name: prospect.last_name || '',
-        company_name: prospect.company || '',
-        position: prospect.position || '',
-        source: 'api_import',
-        status: 'new',
-        lead_score: this.calculateScore(prospect),
-        confidence: prospect.confidence || null
-      });
-    }
-    
-    return validated;
+  // Validation améliorée des prospects
+  private static async validateProspects(prospects: HunterProspect[]): Promise<HunterProspect[]> {
+    return prospects
+      .filter(prospect => {
+        return prospect.email && 
+               prospect.email.includes('@') && 
+               prospect.confidence >= 60 && 
+               prospect.email.length > 5;
+      })
+      .map(prospect => ({
+        ...prospect,
+        score: this.calculateScore(prospect),
+        validated_at: new Date().toISOString()
+      }))
+      .sort((a, b) => (b.score || 0) - (a.score || 0));
   }
 
-  // Calcul de score simplifié
-  private static calculateScore(prospect: any): number {
-    let score = 30;
+  // Calcul de score amélioré
+  private static calculateScore(prospect: HunterProspect): number {
+    let score = prospect.confidence || 50;
     
     if (prospect.first_name && prospect.last_name) score += 10;
     if (prospect.position) score += 15;
-    if (prospect.company) score += 10;
-    if (prospect.confidence) score += Math.round(prospect.confidence * 0.2);
+    if (prospect.linkedin) score += 10;
+    if (prospect.department) score += 5;
     
-    return Math.min(score, 100);
+    if (prospect.sources && prospect.sources > 1) score += prospect.sources * 2;
+    
+    return Math.min(100, score);
   }
 
-  // Méthodes pour les providers
-  private static async callProvider(provider: ApiProvider, criteria: ProspectCriteria) {
-    switch (provider.name) {
-      case 'Hunter.io':
-        return await this.callHunterApi(criteria);
-      default:
-        return [];
+  // Déduplication améliorée
+  private static deduplicateProspects(prospects: HunterProspect[]): HunterProspect[] {
+    const seen = new Set<string>();
+    return prospects.filter(prospect => {
+      const key = `${prospect.email.toLowerCase()}_${prospect.company?.toLowerCase() || ''}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  private static async callProvider(provider: ApiProvider, criteria: ProspectSearchCriteria): Promise<HunterProspect[]> {
+    if (provider.name === 'Hunter.io') {
+      return await this.callHunterApi(criteria);
     }
+    return [];
   }
 
-  private static async callHunterApi(criteria: ProspectCriteria) {
-    const prospects = [];
+  // API Hunter.io optimisée avec cache
+  private static async callHunterApi(criteria: ProspectSearchCriteria): Promise<HunterProspect[]> {
+    const results: HunterProspect[] = [];
     
-    // Recherche par domaines
-    if (criteria.domains) {
+    if (criteria.domains && criteria.domains.length > 0) {
       for (const domain of criteria.domains.slice(0, 3)) {
-        const results = await this.searchHunterByDomain(domain);
-        prospects.push(...results);
+        const domainResults = await this.searchHunterByDomain(domain);
+        results.push(...domainResults);
+        if (results.length >= 15) break;
       }
     }
     
-    // Recherche par mots-clés
-    if (criteria.keywords) {
-      for (const keyword of criteria.keywords.slice(0, 2)) {
-        const results = await this.searchHunterByKeyword(keyword);
-        prospects.push(...results);
-      }
+    if (criteria.companyName && results.length < 10) {
+      const companyResults = await this.searchHunterByCompany(criteria.companyName);
+      results.push(...companyResults);
     }
     
-    return prospects;
+    if (criteria.keywords && criteria.keywords.length > 0 && results.length < 15) {
+      const dynamicResults = await this.searchHunterByDynamicCriteria(criteria);
+      results.push(...dynamicResults);
+    }
+    
+    if (criteria.naturalLanguageQuery && results.length < 10) {
+      const nlResults = await this.searchHunterByNaturalLanguage(criteria.naturalLanguageQuery);
+      results.push(...nlResults);
+    }
+    
+    return results;
   }
 
-  private static async searchHunterByDomain(domain: string) {
+  // Recherche par domaine optimisée avec cache
+  private static async searchHunterByDomain(domain: string): Promise<HunterProspect[]> {
+    const cacheKey = hunterCache.generateKey('domain-search', { domain });
+    
+    const cached = hunterCache.get(cacheKey);
+    if (cached) {
+      apiUsageMonitor.incrementUsage('cache', domain);
+      return cached;
+    }
+    
+    if (!apiUsageMonitor.canMakeRequest()) {
+      console.warn('⚠️ Quota quotidien atteint, utilisation du cache uniquement');
+      return [];
+    }
+    
     try {
       const response = await fetch('/api/hunter-proxy', {
         method: 'POST',
@@ -175,47 +181,254 @@ export class ProspectApiService {
         },
         body: JSON.stringify({
           domain: domain,
-          action: 'domain-search'
+          action: 'domain-search',
+          limit: 5
         })
       });
       
-      const data = await response.json();
+      const data: HunterDomainSearchResponse = await response.json();
       
       if (!response.ok) {
         throw new Error(data.error || 'Erreur API Hunter.io');
       }
       
-      return (data.data?.emails || []).map((email: any) => ({
+      const results: HunterProspect[] = (data.data?.emails || []).map((email) => ({
         email: email.value,
         first_name: email.first_name,
         last_name: email.last_name,
         position: email.position,
-        company: data.data?.domain,
+        company: data.data?.organization || domain,
         confidence: email.confidence,
-        sources: email.sources?.length || 0
+        sources: email.sources?.length || 0,
+        department: email.department,
+        seniority: email.seniority,
+        linkedin: email.linkedin
       }));
+      
+      hunterCache.set(cacheKey, results, 24 * 60 * 60 * 1000);
+      apiUsageMonitor.incrementUsage('api', domain);
+      
+      console.log(`✅ API Hunter.io: ${results.length} prospects trouvés pour ${domain}`);
+      return results;
     } catch (error: unknown) {
       console.error(`Erreur recherche domaine ${domain}:`, error);
       return [];
     }
   }
 
-  private static async searchHunterByKeyword(keyword: string) {
-    // Mapping simplifié keyword -> domaines
-    const keywordToDomains: { [key: string]: string[] } = {
-      'music': ['spotify.com', 'deezer.com', 'soundcloud.com'],
-      'luxury': ['lvmh.com', 'kering.com', 'chanel.com'],
-      'advertising': ['publicis.com', 'wpp.com', 'omnicom.com']
-    };
+  // Recherche par entreprise optimisée avec cache
+  private static async searchHunterByCompany(companyName: string): Promise<HunterProspect[]> {
+    const cacheKey = hunterCache.generateKey('company-search', { companyName });
     
-    const domains = keywordToDomains[keyword.toLowerCase()] || [];
-    const prospects = [];
-    
-    for (const domain of domains.slice(0, 2)) {
-      const results = await this.searchHunterByDomain(domain);
-      prospects.push(...results);
+    const cached = hunterCache.get(cacheKey);
+    if (cached) {
+      apiUsageMonitor.incrementUsage('cache', undefined, companyName);
+      return cached;
     }
     
-    return prospects;
+    if (!apiUsageMonitor.canMakeRequest()) {
+      console.warn('⚠️ Quota quotidien atteint, utilisation du cache uniquement');
+      return [];
+    }
+    
+    try {
+      const response = await fetch('/api/hunter-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'discover',
+          query: `company name: ${companyName}`,
+          limit: 3
+        })
+      });
+      
+      const data: HunterDiscoverResponse = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur API Hunter.io Discover');
+      }
+      
+      const prospects: HunterProspect[] = [];
+      
+      if (data.data?.companies) {
+        for (const company of data.data.companies.slice(0, 2)) {
+          if (company.domain) {
+            const domainProspects = await this.searchHunterByDomain(company.domain);
+            prospects.push(...domainProspects.map((p) => ({
+              ...p,
+              company: company.name || companyName,
+              industry: company.industry,
+              company_size: company.size
+            })));
+          }
+        }
+      }
+      
+      hunterCache.set(cacheKey, prospects, 24 * 60 * 60 * 1000);
+      apiUsageMonitor.incrementUsage('api', undefined, companyName);
+      
+      console.log(`✅ API Hunter.io: ${prospects.length} prospects trouvés pour ${companyName}`);
+      return prospects;
+    } catch (error: unknown) {
+      console.error(`Erreur recherche entreprise ${companyName}:`, error);
+      return [];
+    }
+  }
+
+  // Recherche par critères dynamiques optimisée
+  private static async searchHunterByDynamicCriteria(criteria: ProspectSearchCriteria): Promise<HunterProspect[]> {
+    const cacheKey = hunterCache.generateKey('dynamic-search', criteria);
+    
+    const cached = hunterCache.get(cacheKey);
+    if (cached) {
+      apiUsageMonitor.incrementUsage('cache');
+      return cached;
+    }
+    
+    if (!apiUsageMonitor.canMakeRequest()) {
+      console.warn('⚠️ Quota quotidien atteint, utilisation du cache uniquement');
+      return [];
+    }
+    
+    try {
+      const queryParts: string[] = [];
+      
+      if (criteria.keywords && criteria.keywords.length > 0) {
+        queryParts.push(`keywords: ${criteria.keywords.slice(0, 2).join(' ')}`);
+      }
+      
+      if (criteria.quickFilters?.industry) {
+        queryParts.push(`industry: ${criteria.quickFilters.industry}`);
+      }
+      
+      if (criteria.quickFilters?.location) {
+        queryParts.push(`location: ${criteria.quickFilters.location}`);
+      }
+      
+      const query = queryParts.join(' AND ');
+      
+      if (!query) return [];
+      
+      const response = await fetch('/api/hunter-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'discover',
+          query: query,
+          limit: 3
+        })
+      });
+      
+      const data: HunterDiscoverResponse = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur API Hunter.io Discover');
+      }
+      
+      const prospects: HunterProspect[] = [];
+      
+      if (data.data?.companies) {
+        for (const company of data.data.companies.slice(0, 2)) {
+          if (company.domain) {
+            const domainProspects = await this.searchHunterByDomain(company.domain);
+            prospects.push(...domainProspects.map((p) => ({
+              ...p,
+              company: company.name,
+              industry: company.industry,
+              company_size: company.size,
+              match_criteria: query
+            })));
+          }
+        }
+      }
+      
+      hunterCache.set(cacheKey, prospects, 12 * 60 * 60 * 1000);
+      apiUsageMonitor.incrementUsage('api');
+      
+      console.log(`✅ API Hunter.io: ${prospects.length} prospects trouvés pour critères dynamiques`);
+      return prospects;
+    } catch (error: unknown) {
+      console.error('Erreur recherche critères dynamiques:', error);
+      return [];
+    }
+  }
+
+  // Recherche en langage naturel optimisée
+  private static async searchHunterByNaturalLanguage(query: string): Promise<HunterProspect[]> {
+    const cacheKey = hunterCache.generateKey('natural-language', { query });
+    
+    const cached = hunterCache.get(cacheKey);
+    if (cached) {
+      apiUsageMonitor.incrementUsage('cache');
+      return cached;
+    }
+    
+    if (!apiUsageMonitor.canMakeRequest()) {
+      console.warn('⚠️ Quota quotidien atteint, utilisation du cache uniquement');
+      return [];
+    }
+    
+    try {
+      const response = await fetch('/api/hunter-proxy', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'discover',
+          query: query,
+          limit: 2
+        })
+      });
+      
+      const data: HunterDiscoverResponse = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.error || 'Erreur API Hunter.io Discover');
+      }
+      
+      const prospects: HunterProspect[] = [];
+      
+      if (data.data?.companies) {
+        for (const company of data.data.companies.slice(0, 1)) {
+          if (company.domain) {
+            const domainProspects = await this.searchHunterByDomain(company.domain);
+            prospects.push(...domainProspects.map((p) => ({
+              ...p,
+              company: company.name,
+              industry: company.industry,
+              natural_query: query
+            })));
+          }
+        }
+      }
+      
+      hunterCache.set(cacheKey, prospects, 6 * 60 * 60 * 1000);
+      apiUsageMonitor.incrementUsage('api');
+      
+      console.log(`✅ API Hunter.io: ${prospects.length} prospects trouvés pour requête naturelle`);
+      return prospects;
+    } catch (error: unknown) {
+      console.error('Erreur recherche langage naturel:', error);
+      return [];
+    }
+  }
+
+  // Méthodes utilitaires pour le monitoring
+  static getUsageStats(): ApiUsageStats {
+    return {
+      cache: hunterCache.getStats(),
+      usage: apiUsageMonitor.getEfficiencyStats(),
+      quota: apiUsageMonitor.getRemainingQuota()
+    };
+  }
+
+  static clearCache(): void {
+    hunterCache.clear();
+    console.log('🧹 Cache Hunter.io vidé');
   }
 }

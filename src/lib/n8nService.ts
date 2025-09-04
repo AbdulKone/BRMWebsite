@@ -1,17 +1,29 @@
 interface N8nPayload {
   action: string;
-  data: any;
+  data: Record<string, unknown>;
   timestamp: number;
 }
 
 interface BatchWorkflowAction {
   workflowId: string;
-  data?: Record<string, any>;
+  data?: Record<string, unknown>;
   priority?: 'high' | 'normal' | 'low';
 }
 
+interface N8nResponse {
+  success: boolean;
+  data?: Record<string, unknown>;
+  error?: string;
+}
+
+interface AutomationConfig {
+  workflowId: string;
+  isActive: boolean;
+  settings?: Record<string, unknown>;
+}
+
 class N8nService {
-  private async fetchWithTimeout(input: RequestInfo, init: RequestInit = {}, timeoutMs = 10000) {
+  private async fetchWithTimeout(input: RequestInfo, init: RequestInit = {}, timeoutMs = 10000): Promise<Response> {
     const controller = new AbortController();
     const id = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -41,9 +53,9 @@ class N8nService {
     return json.signature;
   }
 
-  private nowTs = () => Math.floor(Date.now() / 1000);
+  private nowTs = (): number => Math.floor(Date.now() / 1000);
 
-  async triggerWorkflow(workflowId: string, data = {}, opts = { timeoutMs: 15000 }) {
+  async triggerWorkflow(workflowId: string, data: Record<string, unknown> = {}, opts = { timeoutMs: 15000 }): Promise<N8nResponse | null> {
     const payload: N8nPayload = {
       action: 'trigger_workflow',
       data: { workflowId, ...data },
@@ -69,7 +81,7 @@ class N8nService {
     return await resp.json().catch(() => null);
   }
 
-  async batchTriggerWorkflows(actions: BatchWorkflowAction[], opts = { timeoutMs: 30000 }) {
+  async batchTriggerWorkflows(actions: BatchWorkflowAction[], opts = { timeoutMs: 30000 }): Promise<N8nResponse | null> {
     if (!Array.isArray(actions) || actions.length === 0) {
       throw new Error('Aucune action fournie pour batchTriggerWorkflows');
     }
@@ -99,7 +111,7 @@ class N8nService {
     return await resp.json().catch(() => null);
   }
 
-  async toggleAutomation(isActive: boolean, config: any) {
+  async toggleAutomation(isActive: boolean, config: AutomationConfig): Promise<N8nResponse | null> {
     const action = isActive ? 'start_automation' : 'stop_automation';
     const payload: N8nPayload = {
       action,
@@ -123,7 +135,7 @@ class N8nService {
     return await resp.json().catch(() => null);
   }
 
-  async syncAutomationStatus(config: any) {
+  async syncAutomationStatus(config: AutomationConfig): Promise<N8nResponse | null> {
     const payload: N8nPayload = {
       action: 'sync_automation_status',
       data: { config },
@@ -146,7 +158,7 @@ class N8nService {
     return await resp.json().catch(() => null);
   }
 
-  async fetchStats() {
+  async fetchStats(): Promise<Record<string, unknown>> {
     const resp = await this.fetchWithTimeout('/api/automation/stats', {}, 12000);
     if (!resp.ok) {
       const text = await resp.text().catch(() => '');

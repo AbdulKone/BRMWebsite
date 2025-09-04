@@ -1,11 +1,12 @@
 import { useErrorStore } from '../stores/errorStore';
+import { ApiUsageStats } from './types/hunterTypes';
 
 const { handleError } = useErrorStore.getState();
 
 interface AlertRule {
   id: string;
   name: string;
-  condition: (stats: any) => boolean;
+  condition: (stats: ApiUsageStats) => boolean;
   message: string;
   severity: 'info' | 'warning' | 'error';
   cooldown: number; // en minutes
@@ -13,26 +14,26 @@ interface AlertRule {
 
 const alertRules: AlertRule[] = [
   {
-    id: 'low_open_rate',
-    name: 'Taux d\'ouverture faible',
-    condition: (stats) => stats.openRate < 10,
-    message: 'Le taux d\'ouverture est tombé sous 10%. Vérifiez vos objets d\'email.',
+    id: 'low_cache_hit_rate',
+    name: 'Taux de cache faible',
+    condition: (stats) => stats.usage.cacheHitRate < 0.5,
+    message: 'Le taux de cache est tombé sous 50%. Optimisez vos requêtes pour améliorer les performances.',
     severity: 'warning',
     cooldown: 60
   },
   {
-    id: 'high_bounce_rate',
-    name: 'Taux de rebond élevé',
-    condition: (stats) => stats.bounceRate > 5,
-    message: 'Taux de rebond élevé détecté. Nettoyez votre liste de prospects.',
+    id: 'high_api_usage',
+    name: 'Utilisation API élevée',
+    condition: (stats) => stats.usage.totalRequests > stats.quota.daily * 0.8,
+    message: 'Utilisation API élevée détectée. Vous approchez de votre quota quotidien.',
     severity: 'error',
     cooldown: 30
   },
   {
-    id: 'automation_stopped',
-    name: 'Automatisation arrêtée',
-    condition: (stats) => !stats.isActive,
-    message: 'L\'automatisation a été arrêtée de manière inattendue.',
+    id: 'quota_exceeded',
+    name: 'Quota dépassé',
+    condition: (stats) => stats.usage.totalRequests >= stats.quota.daily,
+    message: 'Le quota quotidien a été atteint. Les requêtes API sont suspendues.',
     severity: 'error',
     cooldown: 5
   }
@@ -41,7 +42,7 @@ const alertRules: AlertRule[] = [
 export class AutomationMonitor {
   private lastAlerts = new Map<string, number>();
 
-  checkAlerts(stats: any): void {
+  checkAlerts(stats: ApiUsageStats): void {
     const now = Date.now();
     
     alertRules.forEach(rule => {

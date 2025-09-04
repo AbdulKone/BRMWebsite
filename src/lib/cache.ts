@@ -1,14 +1,13 @@
-interface CacheItem<T> {
-  data: T;
+interface AutomationCacheItem {
+  data: any;
   timestamp: number;
   ttl: number;
 }
 
 class AutomationCache {
-  private cache = new Map<string, CacheItem<any>>();
-  private readonly DEFAULT_TTL = 5 * 60 * 1000; // 5 minutes
+  private cache = new Map<string, AutomationCacheItem>();
 
-  set<T>(key: string, data: T, ttl = this.DEFAULT_TTL): void {
+  set(key: string, data: any, ttl: number = 3600000): void {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
@@ -16,7 +15,7 @@ class AutomationCache {
     });
   }
 
-  get<T>(key: string): T | null {
+  get(key: string): any | null {
     const item = this.cache.get(key);
     if (!item) return null;
 
@@ -26,14 +25,6 @@ class AutomationCache {
     }
 
     return item.data;
-  }
-
-  invalidate(pattern: string): void {
-    for (const key of this.cache.keys()) {
-      if (key.includes(pattern)) {
-        this.cache.delete(key);
-      }
-    }
   }
 
   clear(): void {
