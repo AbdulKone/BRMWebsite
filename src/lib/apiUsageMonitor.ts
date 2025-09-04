@@ -13,10 +13,10 @@ interface UsageAlert {
 }
 
 class ApiUsageMonitor {
-  private readonly DAILY_LIMIT = 50; // Limite gratuite Hunter.io
-  private readonly MONTHLY_LIMIT = 1000;
-  private readonly WARNING_THRESHOLD = 0.8; // 80%
-  private readonly CRITICAL_THRESHOLD = 0.95; // 95%
+  private readonly DAILY_LIMIT = 5; // Répartir 25 requêtes/mois sur ~5 par jour
+  private readonly MONTHLY_LIMIT = 25; // Plan gratuit Hunter.io
+  private readonly WARNING_THRESHOLD = 0.7; // 70% (plus conservateur)
+  private readonly CRITICAL_THRESHOLD = 0.9; // 90% (plus conservateur)
   private readonly STORAGE_KEY = 'hunter_usage_monitor';
 
   private usage: Map<string, DailyUsage> = new Map();

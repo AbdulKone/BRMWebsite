@@ -31,14 +31,18 @@ export default async function handler(req, res) {
         if (!domain) {
           return res.status(400).json({ error: 'Missing domain parameter for domain-search' });
         }
-        url = `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&api_key=${apiKey}&limit=${limit}`;
+        // Limiter à 25 pour rester dans les quotas gratuits
+        const searchLimit = Math.min(limit, 25);
+        url = `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&api_key=${apiKey}&limit=${searchLimit}`;
         break;
         
       case 'discover':
         if (!query) {
           return res.status(400).json({ error: 'Missing query parameter for discover' });
         }
-        url = `https://api.hunter.io/v2/discover?api_key=${apiKey}&limit=${limit}`;
+        // Limiter à 10 pour les recherches discover
+        const discoverLimit = Math.min(limit, 10);
+        url = `https://api.hunter.io/v2/discover?api_key=${apiKey}&limit=${discoverLimit}`;
         // Pour l'API Discover, on utilise POST avec le query dans le body
         requestBody = {
           query: query
