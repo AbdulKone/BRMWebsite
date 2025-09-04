@@ -1,15 +1,26 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAdminStore } from '../../stores/adminStore';
 import { useContentStore } from '../../stores/contentStore';
 import useProspectionStore from '../../stores/prospectionStore';
-import BookingsList from './BookingsList';
-import MessagesList from './MessagesList';
-import ProjectsAdmin from './ProjectsAdmin';
-import ArtistsAdmin from './ArtistsAdmin';
-import ServicesAdmin from './ServicesAdmin';
-import ProspectionDashboard from '../prospection/ProspectionDashboard';
 import { Calendar, MessageCircle, FolderOpen, Users, Settings, TrendingUp, Menu, X } from 'lucide-react';
+import { lazy } from 'react';
+
+// Lazy loading des composants admin
+const BookingsList = lazy(() => import('./BookingsList'));
+const MessagesList = lazy(() => import('./MessagesList'));
+const ProjectsAdmin = lazy(() => import('./ProjectsAdmin'));
+const ArtistsAdmin = lazy(() => import('./ArtistsAdmin'));
+const ServicesAdmin = lazy(() => import('./ServicesAdmin'));
+const ProspectionDashboard = lazy(() => import('../prospection/ProspectionDashboard'));
+
+// Composant de chargement
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center py-12">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+    <span className="ml-3 text-gray-300">Chargement...</span>
+  </div>
+);
 
 const AdminDashboard = () => {
   const location = useLocation();
@@ -19,13 +30,26 @@ const AdminDashboard = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
-    fetchBookings();
-    fetchMessages();
-    fetchProjects();
-    fetchArtists();
-    fetchServices();
-    loadProspects();
-  }, [fetchBookings, fetchMessages, fetchProjects, fetchArtists, fetchServices, loadProspects]);
+    // Chargement conditionnel des données selon la route active
+    const currentPath = location.pathname;
+    
+    if (currentPath.includes('/bookings')) {
+      fetchBookings();
+    } else if (currentPath.includes('/messages')) {
+      fetchMessages();
+    } else if (currentPath.includes('/projects')) {
+      fetchProjects();
+    } else if (currentPath.includes('/artists')) {
+      fetchArtists();
+    } else if (currentPath.includes('/services')) {
+      fetchServices();
+    } else if (currentPath.includes('/prospection')) {
+      loadProspects();
+    } else {
+      // Chargement initial pour la page par défaut
+      fetchBookings();
+    }
+  }, [location.pathname, fetchBookings, fetchMessages, fetchProjects, fetchArtists, fetchServices, loadProspects]);
 
   if (location.pathname === '/backstage') {
     return <Navigate to="/backstage/bookings" replace />;
@@ -158,14 +182,16 @@ const AdminDashboard = () => {
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="bg-white/5 backdrop-blur-sm rounded-lg shadow-xl border border-gray-700/50">
-            <Routes>
-              <Route path="/bookings" element={<BookingsList />} />
-              <Route path="/messages" element={<MessagesList />} />
-              <Route path="/projects" element={<ProjectsAdmin />} />
-              <Route path="/artists" element={<ArtistsAdmin />} />
-              <Route path="/services" element={<ServicesAdmin />} />
-              <Route path="/prospection" element={<ProspectionDashboard />} />
-            </Routes>
+            <Suspense fallback={<LoadingSpinner />}>
+              <Routes>
+                <Route path="/bookings" element={<BookingsList />} />
+                <Route path="/messages" element={<MessagesList />} />
+                <Route path="/projects" element={<ProjectsAdmin />} />
+                <Route path="/artists" element={<ArtistsAdmin />} />
+                <Route path="/services" element={<ServicesAdmin />} />
+                <Route path="/prospection" element={<ProspectionDashboard />} />
+              </Routes>
+            </Suspense>
           </div>
         </div>
       </main>

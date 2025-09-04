@@ -58,7 +58,7 @@ const ProjectCarousel = () => {
                 />
                 {project.video_url && getYouTubeId(project.video_url) && (
                   <button
-                    onClick={() => setActiveVideo(project.video_url)}
+                    onClick={() => setActiveVideo(project.video_url || null)}
                     className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity duration-300"
                   >
                     <span className="w-16 h-16 rounded-full bg-accent-500/80 flex items-center justify-center">
@@ -112,10 +112,19 @@ const ProjectCarousel = () => {
                 height="100%"
                 controls
                 playing
+                light={false} // Désactive la miniature pour éviter les requêtes supplémentaires
                 config={{
                   youtube: {
-                    playerVars: { showinfo: 1 }
+                    playerVars: { 
+                      showinfo: 1,
+                      origin: window.location.origin,
+                      modestbranding: 1, // Réduit le branding YouTube
+                      rel: 0 // Désactive les vidéos suggérées
+                    }
                   }
+                }}
+                onError={(error) => {
+                  console.error('Erreur ReactPlayer:', error);
                 }}
               />
             </div>

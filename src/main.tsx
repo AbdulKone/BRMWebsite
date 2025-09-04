@@ -1,24 +1,23 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
+import React from 'react';
+import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import ErrorBoundary from './components/ErrorBoundary';
 import './index.css';
+import { serviceWorkerManager } from './lib/serviceWorker';
 
-// Initialize Supabase client
-import { supabase } from './lib/supabase';
-
-// Ensure Supabase is initialized
-if (!supabase) {
-  throw new Error('Failed to initialize Supabase client');
+// Enregistrer le service worker
+if (import.meta.env.PROD) {
+  serviceWorkerManager.register().then((registered) => {
+    if (registered) {
+      console.log('✅ Service Worker activé');
+    }
+  });
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <ErrorBoundary>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </ErrorBoundary>
-  </StrictMode>
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  </React.StrictMode>
 );
